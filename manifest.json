@@ -1,0 +1,18 @@
+{
+  "name": "マイポートフォリオ",
+  "short_name": "ポートフォリオ",
+  "description": "株式・投資信託・暗号通貨を管理するポートフォリオアプリ",
+  "start_url": "/portfolio.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#185FA5",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><rect width='120' height='120' rx='24' fill='%23185FA5'/><text x='60' y='78' font-size='64' text-anchor='middle' fill='white'>📊</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
