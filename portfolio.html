@@ -134,6 +134,34 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;}
+
+/* ── ロック画面 ── */
+#lock-screen{
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px;
+}
+.lock-icon{font-size:56px;margin-bottom:16px;}
+.lock-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.lock-sub{font-size:14px;color:var(--text3);margin-bottom:32px;text-align:center;}
+.lock-input{
+  width:100%;max-width:320px;padding:15px 18px;
+  border-radius:14px;border:2px solid var(--border);
+  background:var(--bg2);font-size:20px;color:var(--text);
+  text-align:center;letter-spacing:4px;outline:none;font-family:inherit;
+  margin-bottom:12px;
+}
+.lock-input:focus{border-color:var(--blue);}
+.lock-btn{
+  width:100%;max-width:320px;background:var(--blue);color:#fff;
+  border:none;border-radius:14px;padding:15px;
+  font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;
+  margin-bottom:12px;
+}
+.lock-btn:active{opacity:0.85;}
+.lock-error{font-size:13px;color:var(--red);min-height:20px;text-align:center;}
+.lock-hint{font-size:12px;color:var(--text3);margin-top:24px;text-align:center;line-height:1.6;}
+.lock-change{font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;text-decoration:underline;margin-top:8px;}
 </style>
 
   <!-- PWA -->
@@ -147,6 +175,17 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgcng9IjI0IiBmaWxsPSIjMTg1RkE1Ii8+PHRleHQgeD0iNjAiIHk9Ijc4IiBmb250LXNpemU9IjY0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+8J+TiTwvdGV4dD48L3N2Zz4=">
 </head>
 <body>
+<div id="lock-screen">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">マイポートフォリオ</div>
+  <div class="lock-sub">パスワードを入力してください</div>
+  <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32"
+    onkeydown="if(event.key==='Enter')unlock()" autocomplete="current-password">
+  <button class="lock-btn" onclick="unlock()">ロック解除</button>
+  <div class="lock-error" id="lock-error"></div>
+  <div class="lock-hint">初回はデフォルトパスワード <strong>1234</strong> を使用してください。<br>アプリ内の設定から変更できます。</div>
+</div>
+
 <div class="app">
 
 <!-- ホーム -->
@@ -739,6 +778,57 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
+}
+</script>
+
+<script>
+// ── パスワード管理 ──
+const PW_KEY = 'portfolio_pw';
+const SESSION_KEY = 'portfolio_unlocked';
+const DEFAULT_PW = '1234';
+
+function getStoredPw() {
+  return localStorage.getItem(PW_KEY) || DEFAULT_PW;
+}
+
+function checkSession() {
+  // セッション中（タブを閉じるまで）はロック不要
+  return sessionStorage.getItem(SESSION_KEY) === '1';
+}
+
+function unlock() {
+  const input = document.getElementById('lock-input').value;
+  if (input === getStoredPw()) {
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('lock-input').value = '';
+  } else {
+    const errEl = document.getElementById('lock-error');
+    errEl.textContent = 'パスワードが違います';
+    document.getElementById('lock-input').value = '';
+    document.getElementById('lock-input').focus();
+    setTimeout(() => { errEl.textContent = ''; }, 2000);
+  }
+}
+
+// 起動時チェック
+if (!checkSession()) {
+  document.getElementById('lock-screen').style.display = 'flex';
+  setTimeout(() => document.getElementById('lock-input').focus(), 100);
+} else {
+  document.getElementById('lock-screen').style.display = 'none';
+}
+
+// パスワード変更
+function changePassword() {
+  const cur = prompt('現在のパスワードを入力してください');
+  if (cur !== getStoredPw()) { alert('パスワードが違います'); return; }
+  const newPw = prompt('新しいパスワードを入力してください（4〜32文字）');
+  if (!newPw || newPw.length < 4) { alert('4文字以上で入力してください'); return; }
+  const confirm = prompt('もう一度入力してください');
+  if (newPw !== confirm) { alert('パスワードが一致しません'); return; }
+  localStorage.setItem(PW_KEY, newPw);
+  alert('パスワードを変更しました');
 }
 </script>
 </body>
