@@ -106,6 +106,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .form-actions{display:flex;gap:8px;}
 .form-actions .btn-primary,.form-actions .btn-secondary{margin-top:0;}
 .info-box{background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;}
+.history-list{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:10px;}
+.history-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;}
+.history-item button{border:none;background:var(--red);color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:11px;}
+.chart-panel{background:var(--bg2);border-radius:12px;padding:10px 12px;margin-bottom:12px;}
 </style>
 </head>
 <body>
@@ -162,6 +166,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="sec-title" style="margin-bottom:10px;">口座別評価額</div>
       <div class="chart-wrap" style="height:200px;"><canvas id="barChart"></canvas></div>
     </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">資産カテゴリ別</div>
+      <div class="chart-panel">
+        <div class="legend-row" id="detail-legend"></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="detailChart"></canvas></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">月ごとの資産増減</div>
+      <div class="chart-panel">
+        <div class="chart-wrap" style="height:220px;"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
   </div>
 
   <!-- 設定 -->
@@ -207,11 +224,23 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
       </div>
 
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">月次資産推移を手動編集</div>
+      <div class="settings-group">
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
+          <div class="asset-form-grid">
+            <div class="field"><label>月</label><input id="history-month" type="text" placeholder="2026-08"></div>
+            <div class="field"><label>資産額</label><input id="history-value" type="number" step="1000" placeholder="5000000"></div>
+          </div>
+          <button class="btn-primary" type="button" onclick="addHistoryPoint()">月次データを追加/更新</button>
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </div>
+
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">アプリ情報</div>
       <div class="settings-group">
         <div class="settings-row"><div><div class="settings-label">データ保存先</div><div class="settings-sub">このiPhone内のみ・外部送信なし</div></div></div>
         <div class="settings-row"><div><div class="settings-label">最終更新</div><div class="settings-sub" id="last-updated">—</div></div></div>
-        <div class="settings-row"><div><div class="settings-label">バージョン</div><div class="settings-sub">2.0</div></div></div>
+        <div class="settings-row"><div><div class="settings-label">バージョン</div><div class="settings-sub">2.1</div></div></div>
       </div>
     </div>
   </div>
@@ -231,6 +260,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 const INITIAL_DATA = {
   fxRate: 159.23,
   updatedAt: '2026-08-15',
+  monthlyHistory: [
+    {month:'2026-02', value:48200000},
+    {month:'2026-03', value:49500000},
+    {month:'2026-04', value:50100000},
+    {month:'2026-05', value:51700000},
+    {month:'2026-06', value:52800000},
+    {month:'2026-07', value:54100000},
+    {month:'2026-08', value:54000000}
+  ],
   accounts: {
     tokutei: {
       label: '特定口座',
@@ -242,29 +280,29 @@ const INITIAL_DATA = {
         {name:'eMAXIS Slim TOPIX', cat:'投資信託', value:37204, cost:25000, nav:32956, units:11289, type:'fund'},
         {name:'iFreeHOLD T-Zero2044', cat:'投資信託', value:1445395, cost:1400058, nav:10521, units:1373819, type:'fund'},
         // 日本株
-        {name:'上場TOPIX 1308', cat:'ETF', value:43952, cost:48000, price:2747, shares:16, ticker:'1308.T', type:'jp'},
-        {name:'味の素 2802', cat:'日本株', value:840000, cost:583600, price:4200, shares:200, ticker:'2802.T', type:'jp'},
-        {name:'日本精化 4362', cat:'日本株', value:250000, cost:297300, price:2500, shares:100, ticker:'4362.T', type:'jp'},
-        {name:'クボタ 6326', cat:'日本株', value:310000, cost:221500, price:3100, shares:100, ticker:'6326.T', type:'jp'},
-        {name:'商船三井 9104', cat:'日本株', value:380000, cost:474700, price:3800, shares:100, ticker:'9104.T', type:'jp'},
+        {name:'上場TOPIX 1308', cat:'ETF', value:69072, cost:48000, price:4317, shares:16, ticker:'1308.T', type:'jp'},
+        {name:'味の素 2802', cat:'日本株', value:1113200, cost:583600, price:5566, shares:200, ticker:'2802.T', type:'jp'},
+        {name:'日本精化 4362', cat:'日本株', value:266000, cost:297300, price:2660, shares:100, ticker:'4362.T', type:'jp'},
+        {name:'クボタ 6326', cat:'日本株', value:275150, cost:221500, price:2751.5, shares:100, ticker:'6326.T', type:'jp'},
+        {name:'商船三井 9104', cat:'日本株', value:647100, cost:474700, price:6471, shares:100, ticker:'9104.T', type:'jp'},
         {name:'日本特殊陶業 5334', cat:'日本株', value:2919000, cost:2189877, price:9730, shares:300, ticker:'5334.T', type:'jp'},
         {name:'オリックス 8591', cat:'日本株', value:3231500, cost:2439845, price:6463, shares:500, ticker:'8591.T', type:'jp'},
         // 米国株・ETF
         {name:'KO コカ・コーラ', cat:'米国株', value:1670386, cost:952430, price:87.42, shares:120, ticker:'KO', currency:'USD', type:'us'},
         {name:'V ビザ', cat:'米国株', value:1716913, cost:910317, price:359.42, shares:30, ticker:'V', currency:'USD', type:'us'},
         {name:'BRK/B バークシャー', cat:'米国株', value:2260964, cost:1334703, price:507.12, shares:28, ticker:'BRK-B', currency:'USD', type:'us'},
-        {name:'IVV', cat:'ETF', value:989442, cost:724826, price:776.74, shares:8, ticker:'IVV', currency:'USD', type:'us'},
-        {name:'LMT ロッキード', cat:'米国株', value:286046, cost:182462, price:598.81, shares:3, ticker:'LMT', currency:'USD', type:'us'},
-        {name:'MCD マクドナルド', cat:'米国株', value:740286, cost:698660, price:273.48, shares:17, ticker:'MCD', currency:'USD', type:'us'},
-        {name:'PM フィリップモリス', cat:'米国株', value:514313, cost:344266, price:190.00, shares:17, ticker:'PM', currency:'USD', type:'us'},
-        {name:'VOO', cat:'ETF', value:227785, cost:167325, price:715.27, shares:2, ticker:'VOO', currency:'USD', type:'us'},
-        {name:'VT', cat:'ETF', value:154924, cost:113004, price:162.16, shares:6, ticker:'VT', currency:'USD', type:'us'},
+        {name:'IVV', cat:'ETF', value:849342, cost:724826, price:667.4, shares:8, ticker:'IVV', currency:'USD', type:'us'},
+        {name:'LMT ロッキード', cat:'米国株', value:258851, cost:182462, price:542.4, shares:3, ticker:'LMT', currency:'USD', type:'us'},
+        {name:'MCD マクドナルド', cat:'米国株', value:666665, cost:698660, price:246.7, shares:17, ticker:'MCD', currency:'USD', type:'us'},
+        {name:'PM フィリップモリス', cat:'米国株', value:462343, cost:344266, price:171.0, shares:17, ticker:'PM', currency:'USD', type:'us'},
+        {name:'VOO', cat:'ETF', value:197852, cost:167325, price:621.1, shares:2, ticker:'VOO', currency:'USD', type:'us'},
+        {name:'VT', cat:'ETF', value:134219, cost:113004, price:140.7, shares:6, ticker:'VT', currency:'USD', type:'us'},
       ]
     },
     nisa_growth: {
       label: 'NISA成長投資枠',
       assets: [
-        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:7691392, cost:4600035, nav:45424, units:1693244, type:'fund'},
+        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:7742696, cost:4600035, nav:45424, units:1693244, type:'fund'},
         {name:'eMAXIS Slim オルカン', cat:'投資信託', value:3043587, cost:2600063, nav:39019, units:780027, type:'fund'},
       ]
     },
@@ -272,9 +310,9 @@ const INITIAL_DATA = {
       label: 'NISAつみたて枠（毎月7日¥10万積立中）',
       assets: [
         {name:'eMAXIS Slim 日経平均', cat:'投資信託', value:110886, cost:60402, nav:34010, units:32.604, type:'fund'},
-        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:4124245, cost:2999211, nav:45424, units:907944, type:'fund'},
+        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:4151755, cost:2999211, nav:45424, units:907944, type:'fund'},
         {name:'eMAXIS Slim オルカン', cat:'投資信託', value:41380, cost:40000, nav:39019, units:10605, type:'fund'},
-        {name:'eMAXIS Slim TOPIX', cat:'投資信託', value:165831, cost:100401, nav:32956, units:50319, type:'fund'},
+        {name:'eMAXIS Slim TOPIX', cat:'投資信託', value:168161, cost:100401, nav:32956, units:50319, type:'fund'},
       ]
     },
     private_debt: {
@@ -340,11 +378,70 @@ function loadData(){
     const r=localStorage.getItem(SK);
     DATA = r ? JSON.parse(r) : JSON.parse(JSON.stringify(INITIAL_DATA));
   }catch(e){ DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); }
+  if(!Array.isArray(DATA.monthlyHistory)) DATA.monthlyHistory = [];
+  ensureHistory();
   fxRate = DATA.fxRate || 159.23;
   if(DATA.updatedAt) document.getElementById('last-updated').textContent = DATA.updatedAt + ' 時点';
+  renderHistoryList();
 }
 function saveData(){
   try{ localStorage.setItem(SK, JSON.stringify(DATA)); }catch(e){}
+}
+
+function calcTotalFromAccounts(){
+  if(!DATA || !DATA.accounts) return 0;
+  return Object.values(DATA.accounts).reduce((sum, acc) => sum + (acc.assets || []).reduce((aSum, item) => aSum + Number(item.value || 0), 0), 0);
+}
+
+function ensureHistory(){
+  if(!Array.isArray(DATA.monthlyHistory) || !DATA.monthlyHistory.length){
+    DATA.monthlyHistory = [{month:new Date().toISOString().slice(0,7), value:calcTotalFromAccounts()}];
+  }
+  DATA.monthlyHistory = DATA.monthlyHistory
+    .map(item => ({month:String(item.month||''), value:Number(item.value||0)}))
+    .filter(item => item.month && item.value>0)
+    .sort((a,b) => a.month.localeCompare(b.month));
+  const last = DATA.monthlyHistory[DATA.monthlyHistory.length-1];
+  if(!last || last.month !== new Date().toISOString().slice(0,7)){
+    DATA.monthlyHistory.push({month:new Date().toISOString().slice(0,7), value:calcTotalFromAccounts()});
+  }
+}
+
+function renderHistoryList(){
+  const list=document.getElementById('history-list');
+  if(!list) return;
+  const items=(DATA.monthlyHistory||[]).slice().sort((a,b)=>a.month.localeCompare(b.month));
+  list.innerHTML = items.map(item => `
+    <div class="history-item">
+      <span>${item.month}：${fmt(item.value)}</span>
+      <button type="button" onclick="removeHistoryPoint('${item.month}')">削除</button>
+    </div>
+  `).join('');
+}
+
+function addHistoryPoint(){
+  const month = document.getElementById('history-month').value.trim();
+  const value = Number(document.getElementById('history-value').value || 0);
+  if(!month || !value){ showToast('月と資産額を入力してください'); return; }
+  const idx = (DATA.monthlyHistory||[]).findIndex(item => item.month === month);
+  if(idx >= 0){ DATA.monthlyHistory[idx].value = value; }
+  else { DATA.monthlyHistory.push({month, value}); }
+  DATA.monthlyHistory.sort((a,b) => a.month.localeCompare(b.month));
+  saveData();
+  renderHistoryList();
+  renderCharts();
+  document.getElementById('history-month').value='';
+  document.getElementById('history-value').value='';
+  showToast('月次データを更新しました');
+}
+
+function removeHistoryPoint(month){
+  DATA.monthlyHistory = (DATA.monthlyHistory||[]).filter(item => item.month !== month);
+  if(!DATA.monthlyHistory.length){ DATA.monthlyHistory = [{month:new Date().toISOString().slice(0,7), value:calcTotalFromAccounts()}]; }
+  saveData();
+  renderHistoryList();
+  renderCharts();
+  showToast('月次データを削除しました');
 }
 
 // ═══════════════════════════════════════════
@@ -581,13 +678,15 @@ function saveAsset(){
     value: value || 0,
   };
 
-  if (assetType === 'fund') {
-    const fundValue = nav > 0 && units > 0 ? (nav * units) / 10000 : value;
+  if (value > 0) {
+    payload.value = Number(value);
+  } else if (assetType === 'fund') {
+    const fundValue = nav > 0 && units > 0 ? (nav * units) / 10000 : 0;
     payload.nav = nav || undefined;
     payload.units = units || undefined;
     payload.value = Number(fundValue || 0);
   } else if (assetType === 'jp' || assetType === 'us') {
-    const calcValue = price > 0 && shares > 0 ? price * shares : value;
+    const calcValue = price > 0 && shares > 0 ? price * shares : 0;
     payload.price = price || undefined;
     payload.shares = shares || undefined;
     payload.value = Number(calcValue || 0);
@@ -628,6 +727,7 @@ function render(){
   document.getElementById('m-cash').textContent=fmtM(T.cash.val||0);
   document.getElementById('fx-badge').textContent='USD/JPY '+fxRate.toFixed(2);
   renderAssetList(T);
+  renderHistoryList();
 }
 
 function setHomeTab(tab, el){
@@ -699,7 +799,32 @@ function renderAssetList(T){
   list.innerHTML=html;
 }
 
+function getCategoryBreakdown(){
+  const categoryMap = {
+    日本株: '#378ADD',
+    米国株: '#1D9E75',
+    ETF: '#1D9E75',
+    投資信託: '#BA7517',
+    現金: '#888780',
+    PD: '#D4537E'
+  };
+  const totals = {};
+  for(const acc of Object.values(DATA.accounts)){
+    for(const asset of acc.assets){
+      const cat = asset.cat || 'その他';
+      totals[cat] = (totals[cat] || 0) + Number(asset.value || 0);
+    }
+  }
+  const entries = Object.entries(totals).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  return {
+    labels: entries.map(([k]) => k),
+    values: entries.map(([,v]) => v),
+    colors: entries.map(([k]) => categoryMap[k] || '#888')
+  };
+}
+
 function renderCharts(){
+  if(!DATA) return;
   const T=calcTotals();
   const accLabels=['特定口座','NISA成長','NISAつみたて','プライベートデット','現金・MMF'];
   const accVals=[T.tokutei.val,T.nisa_growth.val,T.nisa_tsumi.val,T.private_debt.val,T.cash.val];
@@ -722,6 +847,56 @@ function renderCharts(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
       scales:{y:{ticks:{callback:v=>v>=100000000?'¥'+(v/100000000).toFixed(0)+'億':'¥'+(v/10000).toFixed(0)+'万',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},x:{ticks:{font:{size:9}},grid:{display:false}}}}
   });
+
+  const detail = getCategoryBreakdown();
+  document.getElementById('detail-legend').innerHTML = detail.labels.map((label, i) =>
+    `<span class="leg-item"><span class="leg-sq" style="background:${detail.colors[i]}"></span>${label} ${T.grand>0?((detail.values[i]/T.grand*100)).toFixed(0):0}%</span>`
+  ).join('');
+
+  const detailCanvas = document.getElementById('detailChart');
+  if(detailCanvas && detail.labels.length){
+    const detailChart = Chart.getChart(detailCanvas);
+    if(detailChart) detailChart.destroy();
+    new Chart(detailCanvas,{
+      type:'doughnut',
+      data:{labels:detail.labels,datasets:[{data:detail.values,backgroundColor:detail.colors,borderWidth:2,borderColor:'transparent',hoverOffset:8}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)+' ('+(T.grand>0?(ctx.raw/T.grand*100).toFixed(1):0)+'%)'}}}}
+    });
+  }
+
+  ensureHistory();
+  const history = (DATA.monthlyHistory || []).slice().sort((a,b) => a.month.localeCompare(b.month));
+  if (!history.length) {
+    DATA.monthlyHistory = [{month:new Date().toISOString().slice(0,7), value:T.grand}];
+  }
+
+  const trendCanvas = document.getElementById('trendChart');
+  if(trendCanvas){
+    const trendChart = Chart.getChart(trendCanvas);
+    if(trendChart) trendChart.destroy();
+    new Chart(trendCanvas,{
+      type:'bar',
+      data:{
+        labels:history.map(h => h.month.replace('-','年')+'月'),
+        datasets:[{
+          label:'資産額',
+          data:history.map(h => h.value),
+          backgroundColor:history.map((h, idx) => idx === history.length-1 ? '#185FA5' : '#9DBFE8'),
+          borderRadius:6,
+          borderSkipped:false
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
+        scales:{
+          y:{ticks:{callback:v=>v>=100000000?'¥'+(v/100000000).toFixed(0)+'億':'¥'+(v/10000).toFixed(0)+'万',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},
+          x:{ticks:{font:{size:9}},grid:{display:false}}
+        }
+      }
+    });
+  }
 }
 
 function goTo(id){
@@ -744,6 +919,7 @@ function showToast(msg){
 document.getElementById('lock-screen').style.display='flex';
 setTimeout(()=>document.getElementById('lock-input').focus(),100);
 loadData();
+renderHistoryList();
 fetchFX().then(()=>render());
 </script>
 </body>
