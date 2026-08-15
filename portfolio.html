@@ -110,6 +110,22 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .history-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12px;}
 .history-item button{border:none;background:var(--red);color:#fff;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:11px;}
 .chart-panel{background:var(--bg2);border-radius:12px;padding:10px 12px;margin-bottom:12px;}
+.dividend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 16px;}
+.dividend-card,.trend-card{background:var(--bg2);border-radius:12px;padding:12px 14px;}
+.dividend-card .label,.trend-card .label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.dividend-card .value,.trend-card .value{font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.dividend-list,.calendar-list,.trend-summary{display:flex;flex-direction:column;gap:8px;}
+.dividend-item,.calendar-month,.trend-row{background:var(--bg2);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.dividend-item .left,.calendar-month .left,.trend-row .left{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.muted{color:var(--text3);font-size:11px;}
+.badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--bg3);color:var(--text2);}
+.month-calendar{display:flex;flex-direction:column;gap:10px;}
+.calendar-month{align-items:flex-start;}
+.calendar-month .amount{font-size:14px;font-weight:700;}
+.calendar-events{display:flex;flex-direction:column;gap:6px;width:100%;}
+.calendar-event{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;background:var(--bg);border:1px solid var(--border);font-size:12px;}
+.ratio-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(24,95,165,0.12);color:var(--blue);}
+.small-btn{border:none;background:var(--bg3);color:var(--text);padding:7px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;}
 </style>
 </head>
 <body>
@@ -153,6 +169,55 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <button class="tab-btn" onclick="setHomeTab('other',this)">その他</button>
     </div>
     <div class="section" id="asset-list"></div>
+  </div>
+
+  <!-- 配当 -->
+  <div class="screen" id="screen-dividend">
+    <div class="topbar"><h1>配当管理</h1></div>
+    <div class="section" style="padding-top:16px;">
+      <div class="dividend-grid">
+        <div class="dividend-card"><div class="label">年間配当</div><div class="value" id="dividend-annual-total">¥0</div></div>
+        <div class="dividend-card"><div class="label">平均利回り</div><div class="value" id="dividend-avg-yield">0.0%</div></div>
+      </div>
+      <div class="chart-panel">
+        <div class="sec-title" style="margin-bottom:10px;">年間配当収入</div>
+        <div class="chart-wrap" style="height:180px;"><canvas id="dividendYearChart"></canvas></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div style="font-size:15px;font-weight:700;margin-bottom:12px;">配当を記録</div>
+      <div class="field"><label>銘柄名</label><input id="dividend-name" type="text" placeholder="例：KO コカ・コーラ"></div>
+      <div class="field"><label>配当金額</label><input id="dividend-amount" type="number" step="1" placeholder="例：20000"></div>
+      <div class="field"><label>入金日</label><input id="dividend-date" type="date"></div>
+      <button class="btn-primary" onclick="saveDividendRecord()">配当を保存</button>
+    </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">配当利回り</div>
+      <div id="dividend-yields" class="dividend-list"></div>
+    </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">配当カレンダー</div>
+      <div id="dividend-calendar" class="month-calendar"></div>
+    </div>
+  </div>
+
+  <!-- 推移 -->
+  <div class="screen" id="screen-trajectory">
+    <div class="topbar"><h1>資産推移</h1></div>
+    <div class="tab-row" id="trend-tabs">
+      <button class="tab-btn active" onclick="setTrendPeriod('month', this)">月次</button>
+      <button class="tab-btn" onclick="setTrendPeriod('year', this)">年次</button>
+    </div>
+    <div class="section" style="padding-top:8px;">
+      <div class="legend-row" id="trend-legend"></div>
+      <div class="chart-panel">
+        <div class="chart-wrap" style="height:260px;"><canvas id="assetTrendChart"></canvas></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">口座別推移</div>
+      <div id="trend-summary" class="trend-summary"></div>
+    </div>
   </div>
 
   <!-- グラフ -->
@@ -248,6 +313,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <nav class="navbar">
   <button class="nav-item active" id="nav-home" onclick="goTo('screen-home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></button>
+  <button class="nav-item" id="nav-dividend" onclick="goTo('screen-dividend')"><span class="nav-icon">💰</span><span class="nav-label">配当</span></button>
+  <button class="nav-item" id="nav-trajectory" onclick="goTo('screen-trajectory')"><span class="nav-icon">📈</span><span class="nav-label">推移</span></button>
   <button class="nav-item" id="nav-chart" onclick="goTo('screen-chart')"><span class="nav-icon">📊</span><span class="nav-label">グラフ</span></button>
   <button class="nav-item" id="nav-settings" onclick="goTo('screen-settings')"><span class="nav-icon">⚙️</span><span class="nav-label">設定</span></button>
 </nav>
@@ -268,6 +335,24 @@ const INITIAL_DATA = {
     {month:'2026-06', value:52800000},
     {month:'2026-07', value:54100000},
     {month:'2026-08', value:54000000}
+  ],
+  assetSnapshots: [
+    {date:'2026-02-15', total:48200000, accountBreakdown:{tokutei:14500000,nisa_growth:16000000,nisa_tsumi:5000000,private_debt:11000000,cash:7000000}},
+    {date:'2026-03-15', total:49500000, accountBreakdown:{tokutei:15000000,nisa_growth:16500000,nisa_tsumi:6000000,private_debt:11000000,cash:7000000}},
+    {date:'2026-04-15', total:50100000, accountBreakdown:{tokutei:15400000,nisa_growth:16900000,nisa_tsumi:6200000,private_debt:11000000,cash:7000000}},
+    {date:'2026-05-15', total:51700000, accountBreakdown:{tokutei:15600000,nisa_growth:17500000,nisa_tsumi:7200000,private_debt:11000000,cash:7000000}},
+    {date:'2026-06-15', total:52800000, accountBreakdown:{tokutei:16000000,nisa_growth:18100000,nisa_tsumi:7600000,private_debt:11000000,cash:7000000}},
+    {date:'2026-07-15', total:54100000, accountBreakdown:{tokutei:16400000,nisa_growth:18800000,nisa_tsumi:8200000,private_debt:11000000,cash:7000000}},
+    {date:'2026-08-15', total:54000000, accountBreakdown:{tokutei:16200000,nisa_growth:18600000,nisa_tsumi:8200000,private_debt:11000000,cash:7000000}}
+  ],
+  dividendRecords: [
+    {id:'div-1', name:'KO コカ・コーラ', amount:18000, date:'2026-02-15', ticker:'KO'},
+    {id:'div-2', name:'MCD マクドナルド', amount:12000, date:'2026-03-15', ticker:'MCD'},
+    {id:'div-3', name:'PM フィリップモリス', amount:15000, date:'2026-04-12', ticker:'PM'},
+    {id:'div-4', name:'KO コカ・コーラ', amount:18000, date:'2026-05-15', ticker:'KO'},
+    {id:'div-5', name:'MCD マクドナルド', amount:12000, date:'2026-06-15', ticker:'MCD'},
+    {id:'div-6', name:'PM フィリップモリス', amount:15000, date:'2026-07-15', ticker:'PM'},
+    {id:'div-7', name:'KO コカ・コーラ', amount:18000, date:'2026-08-15', ticker:'KO'}
   ],
   accounts: {
     tokutei: {
@@ -341,6 +426,7 @@ let DATA = null;
 let fxRate = 159.23;
 let pieChart = null, barChart = null;
 let currentHomeTab = 'all';
+let currentTrendPeriod = 'month';
 let editingAsset = null;
 
 function getPw(){ return localStorage.getItem(PW_KEY) || '1234'; }
@@ -379,13 +465,32 @@ function loadData(){
     DATA = r ? JSON.parse(r) : JSON.parse(JSON.stringify(INITIAL_DATA));
   }catch(e){ DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); }
   if(!Array.isArray(DATA.monthlyHistory)) DATA.monthlyHistory = [];
+  if(!Array.isArray(DATA.assetSnapshots)) DATA.assetSnapshots = [];
+  if(!Array.isArray(DATA.dividendRecords)) DATA.dividendRecords = [];
   ensureHistory();
+  ensureDividendData();
   fxRate = DATA.fxRate || 159.23;
   if(DATA.updatedAt) document.getElementById('last-updated').textContent = DATA.updatedAt + ' 時点';
   renderHistoryList();
 }
 function saveData(){
   try{ localStorage.setItem(SK, JSON.stringify(DATA)); }catch(e){}
+}
+
+function ensureDividendData(){
+  if (!Array.isArray(DATA.dividendRecords)) DATA.dividendRecords = [];
+  DATA.dividendRecords = DATA.dividendRecords
+    .map(item => ({ id: item.id || cryptoRandomId(), name: String(item.name || '銘柄'), amount: Number(item.amount || 0), date: String(item.date || new Date().toISOString().slice(0,10)), ticker: String(item.ticker || '') }))
+    .filter(item => item.amount > 0 && item.date)
+    .sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function cryptoRandomId(){
+  if (window.crypto && crypto.getRandomValues) {
+    const bytes = new Uint8Array(8); crypto.getRandomValues(bytes);
+    return Array.from(bytes).map(v => v.toString(16).padStart(2,'0')).join('');
+  }
+  return 'div-' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 }
 
 function calcTotalFromAccounts(){
@@ -577,12 +682,261 @@ All values in USD.`, 300);
 
   DATA.updatedAt=new Date().toLocaleDateString('ja-JP');
   DATA.fxRate=fxRate;
+  recordAssetSnapshot();
   saveData();
   render();
   btn.disabled=false; btn.textContent='📈 全銘柄を一括更新';
   status.textContent='✅ 更新完了 '+ new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('last-updated').textContent=DATA.updatedAt+' 時点';
   showToast('ポートフォリオを更新しました');
+}
+
+function recordAssetSnapshot(){
+  const total = calcTotalFromAccounts();
+  const now = new Date();
+  const date = now.toISOString().slice(0,10);
+  const entry = {
+    date,
+    total,
+    accountBreakdown:{
+      tokutei: Number(DATA.accounts.tokutei?.assets.reduce((sum,a)=>sum + Number(a.value || 0),0) || 0),
+      nisa_growth: Number(DATA.accounts.nisa_growth?.assets.reduce((sum,a)=>sum + Number(a.value || 0),0) || 0),
+      nisa_tsumi: Number(DATA.accounts.nisa_tsumi?.assets.reduce((sum,a)=>sum + Number(a.value || 0),0) || 0),
+      private_debt: Number(DATA.accounts.private_debt?.assets.reduce((sum,a)=>sum + Number(a.value || 0),0) || 0),
+      cash: Number(DATA.accounts.cash?.assets.reduce((sum,a)=>sum + Number(a.value || 0),0) || 0)
+    }
+  };
+  DATA.assetSnapshots = Array.isArray(DATA.assetSnapshots) ? DATA.assetSnapshots : [];
+  const existingIndex = DATA.assetSnapshots.findIndex(item => item.date === date);
+  if (existingIndex >= 0) DATA.assetSnapshots[existingIndex] = entry;
+  else DATA.assetSnapshots.push(entry);
+  DATA.assetSnapshots = DATA.assetSnapshots.sort((a,b)=>a.date.localeCompare(b.date)).slice(-120);
+  const monthKey = date.slice(0,7);
+  const monthIndex = DATA.monthlyHistory.findIndex(item => item.month === monthKey);
+  if (monthIndex >= 0) DATA.monthlyHistory[monthIndex].value = total;
+  else DATA.monthlyHistory.push({ month: monthKey, value: total });
+  DATA.monthlyHistory = DATA.monthlyHistory.sort((a,b) => a.month.localeCompare(b.month));
+}
+
+function saveDividendRecord(){
+  const name = document.getElementById('dividend-name').value.trim();
+  const amount = Number(document.getElementById('dividend-amount').value || 0);
+  const date = document.getElementById('dividend-date').value;
+  if (!name || !amount || !date) {
+    showToast('銘柄名・金額・入金日を入力してください');
+    return;
+  }
+  DATA.dividendRecords.push({
+    id: cryptoRandomId(),
+    name,
+    amount,
+    date,
+    ticker: name.split(' ')[0] || ''
+  });
+  ensureDividendData();
+  saveData();
+  renderDividendScreen();
+  document.getElementById('dividend-name').value='';
+  document.getElementById('dividend-amount').value='';
+  document.getElementById('dividend-date').value='';
+  showToast('配当を記録しました');
+}
+
+function getDividendTotalsByYear(){
+  const yearMap = {};
+  for (const item of DATA.dividendRecords || []) {
+    const year = item.date.slice(0,4);
+    yearMap[year] = (yearMap[year] || 0) + Number(item.amount || 0);
+  }
+  return Object.entries(yearMap)
+    .map(([year, total]) => ({ year, total }))
+    .sort((a,b) => a.year.localeCompare(b.year));
+}
+
+function getDividendCalendarData(){
+  const map = {};
+  for (const item of DATA.dividendRecords || []) {
+    const month = item.date.slice(0,7);
+    if (!map[month]) map[month] = [];
+    map[month].push(item);
+  }
+  return Object.entries(map)
+    .map(([month, records]) => ({
+      month,
+      total: records.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+      records: records.sort((a,b) => a.date.localeCompare(b.date))
+    }))
+    .sort((a,b) => a.month.localeCompare(b.month));
+}
+
+function buildDividendYieldList(){
+  const map = {};
+  for (const item of DATA.dividendRecords || []) {
+    const key = item.name.toLowerCase();
+    if (!map[key]) map[key] = 0;
+    map[key] += Number(item.amount || 0);
+  }
+  const rows = [];
+  for (const account of Object.values(DATA.accounts || {})) {
+    for (const asset of account.assets || []) {
+      const name = String(asset.name || '').trim();
+      const value = Number(asset.value || 0);
+      const annualDividend = map[name.toLowerCase()] || 0;
+      if (!name || !value || annualDividend <= 0) continue;
+      const yieldPct = (annualDividend / value) * 100;
+      rows.push({ name, value, annualDividend, yieldPct });
+    }
+  }
+  return rows.sort((a,b) => b.yieldPct - a.yieldPct);
+}
+
+function renderDividendScreen(){
+  const annualTotal = (DATA.dividendRecords || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const rows = buildDividendYieldList();
+  const avgYield = rows.length ? rows.reduce((sum, row) => sum + row.yieldPct, 0) / rows.length : 0;
+  document.getElementById('dividend-annual-total').textContent = fmt(annualTotal);
+  document.getElementById('dividend-avg-yield').textContent = avgYield.toFixed(1) + '%';
+
+  const annualChartData = getDividendTotalsByYear();
+  const dividendCtx = document.getElementById('dividendYearChart');
+  if (dividendCtx) {
+    const existing = Chart.getChart(dividendCtx);
+    if (existing) existing.destroy();
+    new Chart(dividendCtx, {
+      type: 'bar',
+      data: {
+        labels: annualChartData.map(item => item.year + '年'),
+        datasets: [{
+          data: annualChartData.map(item => item.total),
+          backgroundColor: '#185FA5',
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+        scales: { y: { ticks: { callback: val => '¥' + Math.round(val / 10000) + '万', font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  const yieldRoot = document.getElementById('dividend-yields');
+  if (yieldRoot) {
+    yieldRoot.innerHTML = rows.length ? rows.map(row => `
+      <div class="dividend-item">
+        <div class="left">
+          <strong>${row.name}</strong>
+          <span class="muted">年間 ${fmt(row.annualDividend)} · 現在価値 ${fmt(row.value)}</span>
+        </div>
+        <span class="ratio-pill">${row.yieldPct.toFixed(2)}%</span>
+      </div>
+    `).join('') : '<div class="dividend-item"><div class="left"><strong>配当データがありません</strong><span class="muted">銘柄名と金額を追加してください</span></div></div>';
+  }
+
+  const calendarRoot = document.getElementById('dividend-calendar');
+  if (calendarRoot) {
+    const data = getDividendCalendarData();
+    calendarRoot.innerHTML = data.length ? data.map(month => `
+      <div class="calendar-month">
+        <div class="left">
+          <strong>${month.month.replace('-', '年')}月</strong>
+          <span class="muted">${month.records.length}件</span>
+        </div>
+        <div class="amount">${fmt(month.total)}</div>
+        <div class="calendar-events">
+          ${month.records.map(item => `
+            <div class="calendar-event">
+              <span>${item.name}</span>
+              <strong>${fmt(item.amount)}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('') : '<div class="dividend-item"><div class="left"><strong>配当カレンダーがありません</strong><span class="muted">配当記録を追加すると表示されます</span></div></div>';
+  }
+}
+
+function getAssetHistorySeries(period='month'){
+  const histories = Array.isArray(DATA.assetSnapshots) && DATA.assetSnapshots.length ? DATA.assetSnapshots : DATA.monthlyHistory || [];
+  if (!histories.length) return [];
+  if (period === 'year') {
+    const yearMap = {};
+    for (const item of histories) {
+      const key = (item.date || item.month || '').slice(0,4);
+      if (!key) continue;
+      yearMap[key] = (yearMap[key] || 0) + Number(item.total || item.value || 0);
+    }
+    return Object.entries(yearMap).map(([label, total]) => ({ label, total }));
+  }
+  const monthly = (DATA.monthlyHistory || []).slice().sort((a,b) => a.month.localeCompare(b.month));
+  return monthly.map(item => ({ label: item.month.replace('-', '年') + '月', total: Number(item.value || 0) }));
+}
+
+function renderTrendScreen(){
+  const period = currentTrendPeriod || 'month';
+  const trendSeries = getAssetHistorySeries(period);
+  const labels = trendSeries.map(item => item.label);
+  const totals = trendSeries.map(item => item.total);
+  const trendLegend = document.getElementById('trend-legend');
+  if (trendLegend) {
+    trendLegend.innerHTML = '<span class="leg-item"><span class="leg-sq" style="background:#185FA5"></span>総資産</span>';
+  }
+  const canvas = document.getElementById('assetTrendChart');
+  if (canvas) {
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: '総資産',
+          data: totals,
+          borderColor: '#185FA5',
+          backgroundColor: 'rgba(24,95,165,0.15)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#185FA5'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+        scales: {
+          y: { ticks: { callback: val => '¥' + Math.round(val / 10000) + '万', font: { size: 10 } }, grid: { color: 'rgba(128,128,128,0.1)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  const summary = document.getElementById('trend-summary');
+  if (summary) {
+    const accountRows = Object.entries(DATA.accounts || {}).map(([key, acc]) => {
+      const total = (acc.assets || []).reduce((sum, asset) => sum + Number(asset.value || 0), 0);
+      return { key, label: acc.label, total };
+    });
+    summary.innerHTML = accountRows.map(row => `
+      <div class="trend-row">
+        <div class="left">
+          <strong>${row.label}</strong>
+          <span class="muted">${fmt(row.total)}</span>
+        </div>
+        <span class="badge">${(row.total / Math.max(calcTotalFromAccounts(), 1) * 100).toFixed(1)}%</span>
+      </div>
+    `).join('');
+  }
+}
+
+function setTrendPeriod(period, el){
+  currentTrendPeriod = period;
+  document.querySelectorAll('#trend-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderTrendScreen();
 }
 
 // ═══════════════════════════════════════════
@@ -728,6 +1082,8 @@ function render(){
   document.getElementById('fx-badge').textContent='USD/JPY '+fxRate.toFixed(2);
   renderAssetList(T);
   renderHistoryList();
+  renderDividendScreen();
+  renderTrendScreen();
 }
 
 function setHomeTab(tab, el){
@@ -903,9 +1259,11 @@ function goTo(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const map={'screen-home':'nav-home','screen-chart':'nav-chart','screen-settings':'nav-settings'};
+  const map={'screen-home':'nav-home','screen-dividend':'nav-dividend','screen-trajectory':'nav-trajectory','screen-chart':'nav-chart','screen-settings':'nav-settings'};
   if(map[id])document.getElementById(map[id]).classList.add('active');
   if(id==='screen-chart')setTimeout(renderCharts,60);
+  if(id==='screen-dividend')setTimeout(renderDividendScreen,60);
+  if(id==='screen-trajectory')setTimeout(renderTrendScreen,60);
   window.scrollTo(0,0);
 }
 
@@ -920,6 +1278,8 @@ document.getElementById('lock-screen').style.display='flex';
 setTimeout(()=>document.getElementById('lock-input').focus(),100);
 loadData();
 renderHistoryList();
+renderDividendScreen();
+renderTrendScreen();
 fetchFX().then(()=>render());
 </script>
 </body>
