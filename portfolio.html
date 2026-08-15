@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ポートフォリオ">
+<meta name="theme-color" content="#185FA5">
+<link rel="manifest" href="manifest.json">
+<title>マイポートフォリオ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{--bg:#fff;--bg2:#f5f5f5;--bg3:#e8e8e8;--text:#111;--text2:#555;--text3:#999;--border:rgba(0,0,0,0.1);--blue:#185FA5;--green:#1D9E75;--red:#E24B4A;--amber:#BA7517;}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--bg2:#1e1e1e;--bg3:#2a2a2a;--text:#f0f0f0;--text2:#aaa;--text3:#666;--border:rgba(255,255,255,0.1);}}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;min-height:100vh;}
+.app{max-width:430px;margin:0 auto;padding-bottom:90px;}
+.screen{display:none;}.screen.active{display:block;}
+#lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;}
+.lock-icon{font-size:56px;margin-bottom:16px;}
+.lock-title{font-size:22px;font-weight:700;margin-bottom:6px;}
+.lock-sub{font-size:14px;color:var(--text3);margin-bottom:32px;text-align:center;}
+.lock-input{width:100%;max-width:320px;padding:15px 18px;border-radius:14px;border:2px solid var(--border);background:var(--bg2);font-size:20px;color:var(--text);text-align:center;letter-spacing:4px;outline:none;font-family:inherit;margin-bottom:12px;}
+.lock-input:focus{border-color:var(--blue);}
+.lock-btn{width:100%;max-width:320px;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;}
+.lock-error{font-size:13px;color:var(--red);min-height:20px;text-align:center;}
+.topbar{padding:52px 16px 12px;background:var(--bg);position:sticky;top:0;z-index:10;border-bottom:0.5px solid var(--border);}
+.topbar h1{font-size:20px;font-weight:700;}
+.topbar-row{display:flex;justify-content:space-between;align-items:center;}
+.fx-badge{font-size:11px;color:var(--text3);background:var(--bg2);padding:3px 8px;border-radius:8px;border:0.5px solid var(--border);}
+.hero{padding:20px 16px 16px;}
+.hero-label{font-size:12px;color:var(--text3);margin-bottom:4px;}
+.hero-value{font-size:34px;font-weight:700;letter-spacing:-1px;}
+.hero-pnl{font-size:15px;margin-top:4px;font-weight:500;}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 16px;}
+.mcard{background:var(--bg2);border-radius:12px;padding:12px 14px;}
+.mcard-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.mcard-val{font-size:18px;font-weight:700;}
+.mcard-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.section{padding:0 16px;margin-bottom:16px;}
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.sec-title{font-size:15px;font-weight:700;}
+.account-group{margin-bottom:16px;}
+.account-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;padding:0 2px;margin-bottom:6px;}
+.asset-card{background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:6px;}
+.asset-row{display:flex;align-items:center;gap:10px;}
+.a-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.a-info{flex:1;min-width:0;}
+.a-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.a-meta{font-size:11px;color:var(--text3);margin-top:1px;}
+.a-right{text-align:right;flex-shrink:0;}
+.a-val{font-size:13px;font-weight:700;}
+.a-pnl{font-size:11px;margin-top:1px;font-weight:500;}
+.bar-track{height:3px;background:var(--bg3);border-radius:2px;margin-top:6px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;}
+.a-pct{font-size:11px;color:var(--text3);margin-top:2px;}
+.summary-card{background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:6px;}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;}
+.sum-label{font-size:13px;color:var(--text2);}
+.sum-val{font-size:13px;font-weight:600;color:var(--text);}
+.sum-pnl{font-size:11px;font-weight:500;}
+.sum-divider{height:0.5px;background:var(--border);margin:6px 0;}
+.tab-row{display:flex;gap:6px;padding:0 16px;margin-bottom:12px;overflow-x:auto;}
+.tab-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:none;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit;white-space:nowrap;}
+.tab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600;}
+.chart-wrap{position:relative;width:100%;}
+.legend-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.leg-sq{width:8px;height:8px;border-radius:2px;}
+.form-section{padding:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.field input,.field select{width:100%;padding:12px 14px;border-radius:12px;border:1.5px solid var(--border);background:var(--bg2);font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;appearance:none;font-family:inherit;}
+.field input:focus,.field select:focus{border-color:var(--blue);}
+.btn-primary{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;}
+.btn-secondary{width:100%;background:var(--bg2);color:var(--text2);border:1.5px solid var(--border);border-radius:14px;padding:13px;font-size:16px;cursor:pointer;margin-top:8px;font-family:inherit;}
+.settings-group{background:var(--bg2);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+.settings-row{display:flex;align-items:center;padding:14px 16px;border-bottom:0.5px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{font-size:14px;color:var(--text);flex:1;}
+.settings-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.pw-result{font-size:13px;min-height:20px;margin-top:8px;text-align:center;}
+.navbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--bg);border-top:0.5px solid var(--border);display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;padding:4px 0;}
+.nav-icon{font-size:22px;color:var(--text3);}
+.nav-label{font-size:10px;color:var(--text3);font-weight:500;}
+.nav-item.active .nav-icon,.nav-item.active .nav-label{color:var(--blue);}
+.tag{display:inline-block;font-size:10px;padding:1px 5px;border-radius:5px;font-weight:600;margin-left:3px;vertical-align:middle;}
+.tag-投資信託{background:#FAEEDA;color:#633806;}
+.tag-日本株{background:#E6F1FB;color:#0C447C;}
+.tag-ETF{background:#E1F5EE;color:#085041;}
+.tag-米国株{background:#E1F5EE;color:#085041;}
+.tag-現金{background:#F1EFE8;color:#444441;}
+.tag-PD{background:#FBEAF0;color:#72243E;}
+.spin{display:inline-block;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9998;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.update-btn{font-size:11px;color:var(--blue);background:none;border:0.5px solid var(--blue);border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:auto;}
+.update-btn:disabled{opacity:0.4;}
+.info-box{background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div id="lock-screen">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">マイポートフォリオ</div>
+  <div class="lock-sub">パスワードを入力してください</div>
+  <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUnlock()">
+  <button class="lock-btn" onclick="doUnlock()">ロック解除</button>
+  <div class="lock-error" id="lock-error"></div>
+  <div style="font-size:12px;color:var(--text3);margin-top:24px;text-align:center;">初回パスワード: <strong>1234</strong></div>
+</div>
+
+<div class="app">
+  <!-- ホーム -->
+  <div class="screen active" id="screen-home">
+    <div class="topbar">
+      <div class="topbar-row">
+        <div><div style="font-size:12px;color:var(--text3);margin-bottom:2px;">マイポートフォリオ</div><h1 id="h-total">読込中...</h1></div>
+        <div style="text-align:right;">
+          <div class="fx-badge" id="fx-badge">USD/JPY —</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;" id="fx-time"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="hero-label">投資損益合計</div>
+      <div class="hero-pnl" id="h-pnl" style="font-size:20px;">計算中...</div>
+    </div>
+    <div class="metrics">
+      <div class="mcard"><div class="mcard-label">特定口座</div><div class="mcard-val" id="m-tokutei">—</div></div>
+      <div class="mcard"><div class="mcard-label">NISA合計</div><div class="mcard-val" id="m-nisa">—</div></div>
+      <div class="mcard"><div class="mcard-label">プライベートデット</div><div class="mcard-val" id="m-pd">—</div></div>
+      <div class="mcard"><div class="mcard-label">現金・MMF</div><div class="mcard-val" id="m-cash">—</div></div>
+    </div>
+    <div class="tab-row" id="home-tabs">
+      <button class="tab-btn active" onclick="setHomeTab('all',this)">すべて</button>
+      <button class="tab-btn" onclick="setHomeTab('tokutei',this)">特定口座</button>
+      <button class="tab-btn" onclick="setHomeTab('nisa_growth',this)">NISA成長</button>
+      <button class="tab-btn" onclick="setHomeTab('nisa_tsumi',this)">NISA積立</button>
+      <button class="tab-btn" onclick="setHomeTab('other',this)">その他</button>
+    </div>
+    <div class="section" id="asset-list"></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="screen" id="screen-chart">
+    <div class="topbar"><h1>資産配分</h1></div>
+    <div class="section" style="padding-top:16px;">
+      <div class="legend-row" id="legend"></div>
+      <div class="chart-wrap" style="height:220px;"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="section">
+      <div class="sec-title" style="margin-bottom:10px;">口座別評価額</div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="barChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="screen" id="screen-settings">
+    <div class="topbar"><h1>設定</h1></div>
+    <div class="form-section">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;">パスワード変更</div>
+      <div class="settings-group">
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+          <div class="field" style="width:100%;margin-bottom:0;"><label>現在のパスワード</label><input type="password" id="s-cur" autocomplete="current-password"></div>
+          <div class="field" style="width:100%;margin-bottom:0;"><label>新しいパスワード（4文字以上）</label><input type="password" id="s-new" autocomplete="new-password"></div>
+          <div class="field" style="width:100%;margin-bottom:0;"><label>新しいパスワード（確認）</label><input type="password" id="s-confirm" autocomplete="new-password"></div>
+          <button class="btn-primary" onclick="savePw()">変更する</button>
+          <div class="pw-result" id="pw-result"></div>
+        </div>
+      </div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:8px;">株価・基準価額を更新</div>
+      <div class="info-box">「更新」ボタンを押すと Claude AI が最新の株価・基準価額・為替レートを取得して評価額を再計算します。</div>
+      <button class="btn-primary" id="refresh-all-btn" onclick="refreshAll()">📈 全銘柄を一括更新</button>
+      <div id="refresh-status" style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center;"></div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">アプリ情報</div>
+      <div class="settings-group">
+        <div class="settings-row"><div><div class="settings-label">データ保存先</div><div class="settings-sub">このiPhone内のみ・外部送信なし</div></div></div>
+        <div class="settings-row"><div><div class="settings-label">最終更新</div><div class="settings-sub" id="last-updated">—</div></div></div>
+        <div class="settings-row"><div><div class="settings-label">バージョン</div><div class="settings-sub">2.0</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="navbar">
+  <button class="nav-item active" id="nav-home" onclick="goTo('screen-home')"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></button>
+  <button class="nav-item" id="nav-chart" onclick="goTo('screen-chart')"><span class="nav-icon">📊</span><span class="nav-label">グラフ</span></button>
+  <button class="nav-item" id="nav-settings" onclick="goTo('screen-settings')"><span class="nav-icon">⚙️</span><span class="nav-label">設定</span></button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// 初期ポートフォリオデータ（2026年8月15日時点）
+// ═══════════════════════════════════════════
+const INITIAL_DATA = {
+  fxRate: 159.23,
+  updatedAt: '2026-08-15',
+  accounts: {
+    tokutei: {
+      label: '特定口座',
+      assets: [
+        // 投資信託
+        {name:'eMAXIS Slim 日経平均', cat:'投資信託', value:142505, cost:99999, nav:34010, units:41.901, type:'fund'},
+        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:126174, cost:113977, nav:45424, units:27777, type:'fund'},
+        {name:'eMAXIS Slim オルカン', cat:'投資信託', value:235448, cost:200003, nav:39019, units:60342, type:'fund'},
+        {name:'eMAXIS Slim TOPIX', cat:'投資信託', value:37204, cost:25000, nav:32956, units:11289, type:'fund'},
+        {name:'iFreeHOLD T-Zero2044', cat:'投資信託', value:1445395, cost:1400058, nav:10521, units:1373819, type:'fund'},
+        // 日本株
+        {name:'上場TOPIX 1308', cat:'ETF', value:43952, cost:48000, price:2747, shares:16, ticker:'1308.T', type:'jp'},
+        {name:'味の素 2802', cat:'日本株', value:840000, cost:583600, price:4200, shares:200, ticker:'2802.T', type:'jp'},
+        {name:'日本精化 4362', cat:'日本株', value:250000, cost:297300, price:2500, shares:100, ticker:'4362.T', type:'jp'},
+        {name:'クボタ 6326', cat:'日本株', value:310000, cost:221500, price:3100, shares:100, ticker:'6326.T', type:'jp'},
+        {name:'商船三井 9104', cat:'日本株', value:380000, cost:474700, price:3800, shares:100, ticker:'9104.T', type:'jp'},
+        {name:'日本特殊陶業 5334', cat:'日本株', value:2919000, cost:2189877, price:9730, shares:300, ticker:'5334.T', type:'jp'},
+        {name:'オリックス 8591', cat:'日本株', value:3231500, cost:2439845, price:6463, shares:500, ticker:'8591.T', type:'jp'},
+        // 米国株・ETF
+        {name:'KO コカ・コーラ', cat:'米国株', value:1670386, cost:952430, price:87.42, shares:120, ticker:'KO', currency:'USD', type:'us'},
+        {name:'V ビザ', cat:'米国株', value:1716913, cost:910317, price:359.42, shares:30, ticker:'V', currency:'USD', type:'us'},
+        {name:'BRK/B バークシャー', cat:'米国株', value:2260964, cost:1334703, price:507.12, shares:28, ticker:'BRK-B', currency:'USD', type:'us'},
+        {name:'IVV', cat:'ETF', value:989442, cost:724826, price:776.74, shares:8, ticker:'IVV', currency:'USD', type:'us'},
+        {name:'LMT ロッキード', cat:'米国株', value:286046, cost:182462, price:598.81, shares:3, ticker:'LMT', currency:'USD', type:'us'},
+        {name:'MCD マクドナルド', cat:'米国株', value:740286, cost:698660, price:273.48, shares:17, ticker:'MCD', currency:'USD', type:'us'},
+        {name:'PM フィリップモリス', cat:'米国株', value:514313, cost:344266, price:190.00, shares:17, ticker:'PM', currency:'USD', type:'us'},
+        {name:'VOO', cat:'ETF', value:227785, cost:167325, price:715.27, shares:2, ticker:'VOO', currency:'USD', type:'us'},
+        {name:'VT', cat:'ETF', value:154924, cost:113004, price:162.16, shares:6, ticker:'VT', currency:'USD', type:'us'},
+      ]
+    },
+    nisa_growth: {
+      label: 'NISA成長投資枠',
+      assets: [
+        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:7691392, cost:4600035, nav:45424, units:1693244, type:'fund'},
+        {name:'eMAXIS Slim オルカン', cat:'投資信託', value:3043587, cost:2600063, nav:39019, units:780027, type:'fund'},
+      ]
+    },
+    nisa_tsumi: {
+      label: 'NISAつみたて枠（毎月7日¥10万積立中）',
+      assets: [
+        {name:'eMAXIS Slim 日経平均', cat:'投資信託', value:110886, cost:60402, nav:34010, units:32.604, type:'fund'},
+        {name:'eMAXIS Slim S&P500', cat:'投資信託', value:4124245, cost:2999211, nav:45424, units:907944, type:'fund'},
+        {name:'eMAXIS Slim オルカン', cat:'投資信託', value:41380, cost:40000, nav:39019, units:10605, type:'fund'},
+        {name:'eMAXIS Slim TOPIX', cat:'投資信託', value:165831, cost:100401, nav:32956, units:50319, type:'fund'},
+      ]
+    },
+    private_debt: {
+      label: 'プライベートデット',
+      assets: [
+        {name:'プライベートデット（USD建て）', cat:'PD', value:44081931, cost:44081931, note:'$276,844.38', type:'other'},
+        {name:'プライベートデット（円建て）', cat:'PD', value:30000000, cost:30000000, note:'¥30,000,000', type:'other'},
+      ]
+    },
+    cash: {
+      label: '現金・預金・MMF',
+      assets: [
+        {name:'現金・預金', cat:'現金', value:25000000, cost:25000000, type:'other'},
+        {name:'外貨建てMMF（米ドル）', cat:'現金', value:1383855, cost:1383855, note:'$8,690.92', type:'other'},
+      ]
+    }
+  }
+};
+
+// ═══════════════════════════════════════════
+// ストレージ・パスワード
+// ═══════════════════════════════════════════
+const SK = 'portfolio_v4';
+const PW_KEY = 'portfolio_pw';
+let DATA = null;
+let fxRate = 159.23;
+let pieChart = null, barChart = null;
+let currentHomeTab = 'all';
+
+function getPw(){ return localStorage.getItem(PW_KEY) || '1234'; }
+function doUnlock(){
+  const val = document.getElementById('lock-input').value;
+  const err = document.getElementById('lock-error');
+  if(val === getPw()){
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('lock-input').value = '';
+  } else {
+    err.textContent = 'パスワードが違います';
+    document.getElementById('lock-input').value = '';
+    setTimeout(()=>{ err.textContent=''; }, 2000);
+  }
+}
+function savePw(){
+  const cur=document.getElementById('s-cur').value;
+  const nw=document.getElementById('s-new').value;
+  const conf=document.getElementById('s-confirm').value;
+  const res=document.getElementById('pw-result');
+  if(cur!==getPw()){res.style.color='var(--red)';res.textContent='現在のパスワードが違います';return;}
+  if(nw.length<4){res.style.color='var(--red)';res.textContent='4文字以上で入力してください';return;}
+  if(nw!==conf){res.style.color='var(--red)';res.textContent='パスワードが一致しません';return;}
+  localStorage.setItem(PW_KEY,nw);
+  res.style.color='var(--green)';res.textContent='パスワードを変更しました！';
+  document.getElementById('s-cur').value='';document.getElementById('s-new').value='';document.getElementById('s-confirm').value='';
+  setTimeout(()=>{res.textContent='';},3000);
+}
+
+// ═══════════════════════════════════════════
+// データ管理
+// ═══════════════════════════════════════════
+function loadData(){
+  try{
+    const r=localStorage.getItem(SK);
+    DATA = r ? JSON.parse(r) : JSON.parse(JSON.stringify(INITIAL_DATA));
+  }catch(e){ DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); }
+  fxRate = DATA.fxRate || 159.23;
+  if(DATA.updatedAt) document.getElementById('last-updated').textContent = DATA.updatedAt + ' 時点';
+}
+function saveData(){
+  try{ localStorage.setItem(SK, JSON.stringify(DATA)); }catch(e){}
+}
+
+// ═══════════════════════════════════════════
+// 為替レート取得
+// ═══════════════════════════════════════════
+async function fetchFX(){
+  try{
+    const r=await fetch('https://api.frankfurter.app/latest?from=USD&to=JPY');
+    const d=await r.json();
+    fxRate=d.rates.JPY;
+    DATA.fxRate=fxRate;
+    document.getElementById('fx-badge').textContent='USD/JPY '+fxRate.toFixed(2);
+    document.getElementById('fx-time').textContent='更新: '+new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════
+// Claude API
+// ═══════════════════════════════════════════
+async function callClaude(prompt, maxTokens=200){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTokens,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:prompt}]})
+  });
+  const d=await r.json();
+  const t=(d.content||[]).find(b=>b.type==='text');
+  if(!t)throw new Error('no text');
+  const m=t.text.replace(/```json|```/g,'').trim().match(/\{[\s\S]*\}/);
+  if(!m)throw new Error('no json');
+  return JSON.parse(m[0]);
+}
+
+// ═══════════════════════════════════════════
+// 一括更新
+// ═══════════════════════════════════════════
+async function refreshAll(){
+  const btn=document.getElementById('refresh-all-btn');
+  const status=document.getElementById('refresh-status');
+  btn.disabled=true; btn.textContent='⏳ 更新中...';
+
+  // 1. 為替レート
+  status.textContent='為替レートを取得中...';
+  await fetchFX();
+
+  // ファンドの基準価額を一括取得
+  const fundNames = [
+    'eMAXIS Slim 日経平均（日経225）',
+    'eMAXIS Slim 米国株式 S&P500',
+    'eMAXIS Slim 全世界株式 オルカン',
+    'eMAXIS Slim 国内株式 TOPIX',
+    'iFreeHOLD 米国国債 T-Zero2044'
+  ];
+  status.textContent='投資信託の基準価額を取得中...';
+  try{
+    const info=await callClaude(
+      `Search for the latest NAV prices of these Japanese investment trusts and return ONLY JSON with no markdown:
+{"nikkei":NUMBER,"sp500":NUMBER,"orcan":NUMBER,"topix":NUMBER,"tzero":NUMBER}
+- nikkei: eMAXIS Slim 国内株式(日経平均) 1万口あたり基準価額
+- sp500: eMAXIS Slim 米国株式(S&P500) 1万口あたり基準価額
+- orcan: eMAXIS Slim 全世界株式(オール・カントリー) 1万口あたり基準価額
+- topix: eMAXIS Slim 国内株式(TOPIX) 1万口あたり基準価額
+- tzero: iFreeHOLD 米国国債(T-Zero2044) 1万口あたり基準価額`, 400);
+
+    const navMap = {nikkei:info.nikkei, sp500:info.sp500, orcan:info.orcan, topix:info.topix, tzero:info.tzero};
+    for(const accKey of Object.keys(DATA.accounts)){
+      for(const a of DATA.accounts[accKey].assets){
+        if(a.type!=='fund') continue;
+        let nav=null;
+        if(a.name.includes('日経')) nav=navMap.nikkei;
+        else if(a.name.includes('S&P500')||a.name.includes('S＆P500')) nav=navMap.sp500;
+        else if(a.name.includes('オルカン')||a.name.includes('全世界')) nav=navMap.orcan;
+        else if(a.name.includes('TOPIX')) nav=navMap.topix;
+        else if(a.name.includes('T-Zero')||a.name.includes('T-zero')) nav=navMap.tzero;
+        if(nav&&nav>0){
+          a.nav=nav;
+          a.value=nav*a.units/10000;
+        }
+      }
+    }
+  }catch(e){ status.textContent='投資信託の取得に失敗しました'; }
+
+  // 株価更新（日本株）
+  const jpTickers = ['1308.T','2802.T','4362.T','6326.T','9104.T','5334.T','8591.T'];
+  status.textContent='日本株の株価を取得中...';
+  try{
+    const info=await callClaude(
+      `Search for current Japanese stock prices. Return ONLY JSON with no markdown:
+{"1308":NUMBER,"2802":NUMBER,"4362":NUMBER,"6326":NUMBER,"9104":NUMBER,"5334":NUMBER,"8591":NUMBER}
+Where keys are ticker codes and values are current stock prices in JPY.`, 300);
+    for(const a of DATA.accounts.tokutei.assets){
+      if(a.type!=='jp') continue;
+      const code=a.ticker.replace('.T','');
+      if(info[code]&&info[code]>0){
+        a.price=info[code];
+        a.value=info[code]*a.shares;
+      }
+    }
+  }catch(e){}
+
+  // 株価更新（米国株・ETF）
+  status.textContent='米国株・ETFの株価を取得中...';
+  try{
+    const info=await callClaude(
+      `Search for current US stock and ETF prices. Return ONLY JSON with no markdown:
+{"KO":NUMBER,"V":NUMBER,"BRK_B":NUMBER,"IVV":NUMBER,"LMT":NUMBER,"MCD":NUMBER,"PM":NUMBER,"VOO":NUMBER,"VT":NUMBER}
+All values in USD.`, 300);
+    const map={KO:'KO',V:'V','BRK-B':'BRK_B',IVV:'IVV',LMT:'LMT',MCD:'MCD',PM:'PM',VOO:'VOO',VT:'VT'};
+    for(const a of DATA.accounts.tokutei.assets){
+      if(a.type!=='us') continue;
+      const key=map[a.ticker];
+      if(key&&info[key]&&info[key]>0){
+        a.price=info[key];
+        a.value=info[key]*a.shares*fxRate;
+      }
+    }
+    // USD建てプライベートデット再計算
+    for(const a of DATA.accounts.private_debt.assets){
+      if(a.note&&a.note.includes('$')){
+        const usdAmt=parseFloat(a.note.replace('$','').replace(',',''));
+        a.value=usdAmt*fxRate;
+      }
+    }
+    // MMF再計算
+    for(const a of DATA.accounts.cash.assets){
+      if(a.note&&a.note.includes('$')){
+        const usdAmt=parseFloat(a.note.replace('$','').replace(',',''));
+        a.value=usdAmt*fxRate;
+      }
+    }
+  }catch(e){}
+
+  DATA.updatedAt=new Date().toLocaleDateString('ja-JP');
+  DATA.fxRate=fxRate;
+  saveData();
+  render();
+  btn.disabled=false; btn.textContent='📈 全銘柄を一括更新';
+  status.textContent='✅ 更新完了 '+ new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('last-updated').textContent=DATA.updatedAt+' 時点';
+  showToast('ポートフォリオを更新しました');
+}
+
+// ═══════════════════════════════════════════
+// レンダリング
+// ═══════════════════════════════════════════
+function fmt(n){ return '¥'+Math.round(n).toLocaleString('ja-JP'); }
+function fmtM(n){ return n>=100000000?'¥'+(n/100000000).toFixed(1)+'億':n>=10000?'¥'+(n/10000).toFixed(0)+'万':'¥'+Math.round(n).toLocaleString(); }
+
+function calcTotals(){
+  const totals={};
+  let grand=0;
+  for(const [key,acc] of Object.entries(DATA.accounts)){
+    const val=acc.assets.reduce((s,a)=>s+a.value,0);
+    const cost=acc.assets.reduce((s,a)=>s+a.cost,0);
+    totals[key]={val,cost,pnl:val-cost};
+    grand+=val;
+  }
+  totals.grand=grand;
+  return totals;
+}
+
+function render(){
+  const T=calcTotals();
+  // ヘッダー
+  document.getElementById('h-total').textContent=fmt(T.grand);
+  const investPnl=(T.tokutei.pnl||0)+(T.nisa_growth.pnl||0)+(T.nisa_tsumi.pnl||0);
+  const investCost=(T.tokutei.cost||0)+(T.nisa_growth.cost||0)+(T.nisa_tsumi.cost||0);
+  const investPct=investCost>0?investPnl/investCost*100:0;
+  const pe=document.getElementById('h-pnl');
+  pe.textContent=(investPnl>=0?'+':'')+fmt(investPnl)+' ('+(investPct>=0?'+':'')+investPct.toFixed(1)+'%)';
+  pe.style.color=investPnl>=0?'var(--green)':'var(--red)';
+  document.getElementById('m-tokutei').textContent=fmtM(T.tokutei.val);
+  document.getElementById('m-nisa').textContent=fmtM((T.nisa_growth.val||0)+(T.nisa_tsumi.val||0));
+  document.getElementById('m-pd').textContent=fmtM(T.private_debt.val||0);
+  document.getElementById('m-cash').textContent=fmtM(T.cash.val||0);
+  document.getElementById('fx-badge').textContent='USD/JPY '+fxRate.toFixed(2);
+  renderAssetList(T);
+}
+
+function setHomeTab(tab, el){
+  currentHomeTab=tab;
+  document.querySelectorAll('#home-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const T=calcTotals();
+  renderAssetList(T);
+}
+
+const COLORS_CAT={'投資信託':'#BA7517','日本株':'#378ADD','ETF':'#1D9E75','米国株':'#1D9E75','現金':'#888780','PD':'#D4537E'};
+const COLORS_ACC={'tokutei':'#185FA5','nisa_growth':'#1D9E75','nisa_tsumi':'#378ADD','private_debt':'#D4537E','cash':'#888780'};
+
+function renderAssetList(T){
+  const list=document.getElementById('asset-list');
+  const grand=T.grand;
+  let html='';
+
+  const showAcc=(key)=>{
+    const acc=DATA.accounts[key];
+    const accVal=T[key].val;
+    const accCost=T[key].cost;
+    const accPnl=T[key].pnl;
+    const hasInvest=key!=='private_debt'&&key!=='cash';
+    html+=`<div class="account-group">`;
+    html+=`<div class="account-label">${acc.label}</div>`;
+    // サマリーカード
+    html+=`<div class="summary-card">`;
+    html+=`<div class="sum-row"><span class="sum-label">評価額合計</span><span class="sum-val">${fmt(accVal)}</span></div>`;
+    if(hasInvest){
+      html+=`<div class="sum-divider"></div>`;
+      const pct=accCost>0?accPnl/accCost*100:0;
+      html+=`<div class="sum-row"><span class="sum-label">損益</span><span class="sum-pnl" style="color:${accPnl>=0?'var(--green)':'var(--red)'}">${accPnl>=0?'+':''}${fmt(accPnl)} (${pct>=0?'+':''}${pct.toFixed(1)}%)</span></div>`;
+    }
+    html+=`</div>`;
+    // 個別銘柄
+    for(const a of acc.assets){
+      const ap=grand>0?(a.value/grand*100):0;
+      const pnl=a.value-a.cost;
+      const pnlPct=a.cost>0?(pnl/a.cost*100):0;
+      const col=COLORS_CAT[a.cat]||'#888';
+      const initial=a.name.charAt(0);
+      html+=`<div class="asset-card">
+        <div class="asset-row">
+          <div class="a-icon" style="background:${col}22;color:${col};">${initial}</div>
+          <div class="a-info">
+            <div class="a-name">${a.name}<span class="tag tag-${a.cat}">${a.cat}</span></div>
+            <div class="a-meta">${a.type==='fund'?`¥${a.nav?.toLocaleString()}/万口 · ${a.units}口`:a.type==='jp'?`¥${a.price?.toLocaleString()} × ${a.shares}株`:a.type==='us'?`$${a.price?.toFixed(2)} × ${a.shares}株`:(a.note||'')}</div>
+          </div>
+          <div class="a-right">
+            <div class="a-val">${fmt(a.value)}</div>
+            ${hasInvest?`<div class="a-pnl" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>`:''}
+          </div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ap.toFixed(1)}%;background:${col}"></div></div>
+        <div class="a-pct">全体比率 ${ap.toFixed(1)}%</div>
+      </div>`;
+    }
+    html+='</div>';
+  };
+
+  if(currentHomeTab==='all'){
+    showAcc('tokutei'); showAcc('nisa_growth'); showAcc('nisa_tsumi');
+    showAcc('private_debt'); showAcc('cash');
+  } else {
+    showAcc(currentHomeTab);
+  }
+  list.innerHTML=html;
+}
+
+function renderCharts(){
+  const T=calcTotals();
+  const accLabels=['特定口座','NISA成長','NISAつみたて','プライベートデット','現金・MMF'];
+  const accVals=[T.tokutei.val,T.nisa_growth.val,T.nisa_tsumi.val,T.private_debt.val,T.cash.val];
+  const accCols=[COLORS_ACC.tokutei,COLORS_ACC.nisa_growth,COLORS_ACC.nisa_tsumi,COLORS_ACC.private_debt,COLORS_ACC.cash];
+
+  document.getElementById('legend').innerHTML=accLabels.map((k,i)=>
+    `<span class="leg-item"><span class="leg-sq" style="background:${accCols[i]}"></span>${k} ${T.grand>0?((accVals[i]/T.grand)*100).toFixed(0):0}%</span>`
+  ).join('');
+
+  if(pieChart)pieChart.destroy();
+  pieChart=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:accLabels,datasets:[{data:accVals,backgroundColor:accCols,borderWidth:3,borderColor:'transparent',hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)+' ('+(T.grand>0?(ctx.raw/T.grand*100).toFixed(1):0)+'%)'}}}}
+  });
+  if(barChart)barChart.destroy();
+  barChart=new Chart(document.getElementById('barChart'),{
+    type:'bar',
+    data:{labels:accLabels,datasets:[{data:accVals,backgroundColor:accCols,borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
+      scales:{y:{ticks:{callback:v=>v>=100000000?'¥'+(v/100000000).toFixed(0)+'億':'¥'+(v/10000).toFixed(0)+'万',font:{size:10}},grid:{color:'rgba(128,128,128,0.1)'}},x:{ticks:{font:{size:9}},grid:{display:false}}}}
+  });
+}
+
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const map={'screen-home':'nav-home','screen-chart':'nav-chart','screen-settings':'nav-settings'};
+  if(map[id])document.getElementById(map[id]).classList.add('active');
+  if(id==='screen-chart')setTimeout(renderCharts,60);
+  window.scrollTo(0,0);
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// 起動時
+document.getElementById('lock-screen').style.display='flex';
+setTimeout(()=>document.getElementById('lock-input').focus(),100);
+loadData();
+fetchFX().then(()=>render());
+</script>
+</body>
+</html>
