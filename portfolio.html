@@ -99,6 +99,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .toast.show{opacity:1;}
 .update-btn{font-size:11px;color:var(--blue);background:none;border:0.5px solid var(--blue);border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:auto;}
 .update-btn:disabled{opacity:0.4;}
+.mini-btn{border:1px solid var(--border);background:var(--bg);color:var(--text2);padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer;margin-top:6px;}
+.asset-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.asset-form-grid .field{margin-bottom:0;}
+.asset-form-grid .field.full{grid-column:1 / -1;}
+.form-actions{display:flex;gap:8px;}
+.form-actions .btn-primary,.form-actions .btn-secondary{margin-top:0;}
 .info-box{background:var(--bg2);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;}
 </style>
 </head>
@@ -176,6 +182,31 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="info-box">「更新」ボタンを押すと Claude AI が最新の株価・基準価額・為替レートを取得して評価額を再計算します。</div>
       <button class="btn-primary" id="refresh-all-btn" onclick="refreshAll()">📈 全銘柄を一括更新</button>
       <div id="refresh-status" style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center;"></div>
+
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">銘柄追加・編集</div>
+      <div class="settings-group">
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:12px;">
+          <div id="asset-form-title" style="font-size:13px;font-weight:700;">新規銘柄を追加</div>
+          <div class="asset-form-grid">
+            <div class="field"><label>口座</label><select id="asset-account"><option value="tokutei">特定口座</option><option value="nisa_growth">NISA成長</option><option value="nisa_tsumi">NISA積立</option><option value="private_debt">プライベートデット</option><option value="cash">現金・MMF</option></select></div>
+            <div class="field"><label>種別</label><select id="asset-type"><option value="jp">日本株</option><option value="us">米国株</option><option value="fund">投資信託</option><option value="other">その他</option></select></div>
+            <div class="field full"><label>銘柄名</label><input id="asset-name" type="text" placeholder="例: 東京エレクトロン"></div>
+            <div class="field"><label>カテゴリ</label><select id="asset-cat"><option value="日本株">日本株</option><option value="米国株">米国株</option><option value="投資信託">投資信託</option><option value="ETF">ETF</option><option value="現金">現金</option><option value="PD">PD</option></select></div>
+            <div class="field"><label>ティッカー</label><input id="asset-ticker" type="text" placeholder="例: 6758.T"></div>
+            <div class="field"><label>現在価格</label><input id="asset-price" type="number" step="0.01" placeholder="例: 5000"></div>
+            <div class="field"><label>保有株数</label><input id="asset-shares" type="number" step="0.01" placeholder="例: 10"></div>
+            <div class="field"><label>単位数</label><input id="asset-units" type="number" step="0.01" placeholder="例: 123.45"></div>
+            <div class="field"><label>基準価額</label><input id="asset-nav" type="number" step="0.01" placeholder="例: 32000"></div>
+            <div class="field"><label>取得原価</label><input id="asset-cost" type="number" step="0.01" placeholder="例: 250000"></div>
+            <div class="field"><label>評価額</label><input id="asset-value" type="number" step="0.01" placeholder="例: 300000"></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" type="button" id="asset-save-btn" onclick="saveAsset()">追加する</button>
+            <button class="btn-secondary" type="button" id="asset-cancel-btn" onclick="resetAssetForm()" style="display:none;">キャンセル</button>
+          </div>
+        </div>
+      </div>
+
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">アプリ情報</div>
       <div class="settings-group">
         <div class="settings-row"><div><div class="settings-label">データ保存先</div><div class="settings-sub">このiPhone内のみ・外部送信なし</div></div></div>
@@ -272,6 +303,7 @@ let DATA = null;
 let fxRate = 159.23;
 let pieChart = null, barChart = null;
 let currentHomeTab = 'all';
+let editingAsset = null;
 
 function getPw(){ return localStorage.getItem(PW_KEY) || '1234'; }
 function doUnlock(){
@@ -475,6 +507,111 @@ function calcTotals(){
   return totals;
 }
 
+function resetAssetForm(){
+  editingAsset = null;
+  document.getElementById('asset-form-title').textContent = '新規銘柄を追加';
+  document.getElementById('asset-save-btn').textContent = '追加する';
+  document.getElementById('asset-cancel-btn').style.display = 'none';
+  const fields = ['asset-account','asset-type','asset-name','asset-cat','asset-ticker','asset-price','asset-shares','asset-units','asset-nav','asset-cost','asset-value'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = '';
+  });
+  document.getElementById('asset-account').value = 'tokutei';
+  document.getElementById('asset-type').value = 'jp';
+  document.getElementById('asset-cat').value = '日本株';
+}
+
+function openAssetEditor(accountKey, assetIndex){
+  const acc = DATA.accounts[accountKey];
+  const asset = acc.assets[assetIndex];
+  if (!asset) return;
+  editingAsset = { accountKey, assetIndex };
+  document.getElementById('asset-account').value = accountKey;
+  document.getElementById('asset-type').value = asset.type || 'other';
+  document.getElementById('asset-name').value = asset.name || '';
+  document.getElementById('asset-cat').value = asset.cat || 'その他';
+  document.getElementById('asset-ticker').value = asset.ticker || '';
+  document.getElementById('asset-price').value = asset.price ?? '';
+  document.getElementById('asset-shares').value = asset.shares ?? '';
+  document.getElementById('asset-units').value = asset.units ?? '';
+  document.getElementById('asset-nav').value = asset.nav ?? '';
+  document.getElementById('asset-cost').value = asset.cost ?? '';
+  document.getElementById('asset-value').value = asset.value ?? '';
+  document.getElementById('asset-form-title').textContent = '銘柄を編集';
+  document.getElementById('asset-save-btn').textContent = '更新する';
+  document.getElementById('asset-cancel-btn').style.display = 'inline-flex';
+  goTo('screen-settings');
+  document.getElementById('asset-name').focus();
+}
+
+function saveAsset(){
+  const accountKey = document.getElementById('asset-account').value;
+  const assetType = document.getElementById('asset-type').value;
+  const name = document.getElementById('asset-name').value.trim();
+  const cat = document.getElementById('asset-cat').value;
+  const ticker = document.getElementById('asset-ticker').value.trim();
+  const price = Number(document.getElementById('asset-price').value || 0);
+  const shares = Number(document.getElementById('asset-shares').value || 0);
+  const units = Number(document.getElementById('asset-units').value || 0);
+  const nav = Number(document.getElementById('asset-nav').value || 0);
+  const cost = Number(document.getElementById('asset-cost').value || 0);
+  const value = Number(document.getElementById('asset-value').value || 0);
+
+  if (!name) {
+    showToast('銘柄名を入力してください');
+    return;
+  }
+  if (!DATA.accounts[accountKey]) {
+    showToast('口座を選択してください');
+    return;
+  }
+
+  const payload = {
+    name,
+    cat,
+    type: assetType,
+    ticker: ticker || undefined,
+    price: price || undefined,
+    shares: shares || undefined,
+    units: units || undefined,
+    nav: nav || undefined,
+    cost: cost || 0,
+    value: value || 0,
+  };
+
+  if (assetType === 'fund') {
+    const fundValue = nav > 0 && units > 0 ? (nav * units) / 10000 : value;
+    payload.nav = nav || undefined;
+    payload.units = units || undefined;
+    payload.value = Number(fundValue || 0);
+  } else if (assetType === 'jp' || assetType === 'us') {
+    const calcValue = price > 0 && shares > 0 ? price * shares : value;
+    payload.price = price || undefined;
+    payload.shares = shares || undefined;
+    payload.value = Number(calcValue || 0);
+    if (assetType === 'us') payload.currency = 'USD';
+    else payload.currency = 'JPY';
+  } else if (assetType === 'other') {
+    payload.value = Number(value || 0);
+  }
+
+  if (editingAsset) {
+    DATA.accounts[editingAsset.accountKey].assets[editingAsset.assetIndex] = payload;
+    showToast('銘柄を更新しました');
+  } else {
+    DATA.accounts[accountKey].assets.push(payload);
+    showToast('銘柄を追加しました');
+  }
+
+  DATA.updatedAt = new Date().toLocaleDateString('ja-JP');
+  saveData();
+  render();
+  renderCharts();
+  resetAssetForm();
+}
+
 function render(){
   const T=calcTotals();
   // ヘッダー
@@ -527,7 +664,7 @@ function renderAssetList(T){
     }
     html+=`</div>`;
     // 個別銘柄
-    for(const a of acc.assets){
+    for(const [idx, a] of acc.assets.entries()){
       const ap=grand>0?(a.value/grand*100):0;
       const pnl=a.value-a.cost;
       const pnlPct=a.cost>0?(pnl/a.cost*100):0;
@@ -543,6 +680,7 @@ function renderAssetList(T){
           <div class="a-right">
             <div class="a-val">${fmt(a.value)}</div>
             ${hasInvest?`<div class="a-pnl" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${pnl>=0?'+':''}${pnlPct.toFixed(1)}%</div>`:''}
+            <button class="mini-btn" type="button" onclick="openAssetEditor('${key}', ${idx})">編集</button>
           </div>
         </div>
         <div class="bar-track"><div class="bar-fill" style="width:${ap.toFixed(1)}%;background:${col}"></div></div>
