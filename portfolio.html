@@ -261,6 +261,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <div class="pw-result" id="pw-result"></div>
         </div>
       </div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">パスワードリセット</div>
+      <div class="settings-group">
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">⚠️ このボタンをクリックするとパスワードが初期値（1234）にリセットされます。</div>
+          <button class="btn-secondary" onclick="resetPassword()" style="background:var(--red)20;color:var(--red);border-color:var(--red);">🔄 パスワードをリセット</button>
+          <div class="pw-result" id="reset-result"></div>
+        </div>
+      </div>
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:8px;">株価・基準価額を更新</div>
       <div class="info-box">「更新」ボタンを押すと Claude AI が最新の株価・基準価額・為替レートを取得して評価額を再計算します。</div>
       <button class="btn-primary" id="refresh-all-btn" onclick="refreshAll()">📈 全銘柄を一括更新</button>
@@ -505,6 +513,37 @@ async function savePw(){
   res.style.color='var(--green)';res.textContent='パスワードを変更しました！';
   document.getElementById('s-cur').value='';document.getElementById('s-new').value='';document.getElementById('s-confirm').value='';
   setTimeout(()=>{res.textContent='';},3000);
+}
+
+async function resetPassword(){
+  const resetRes=document.getElementById('reset-result');
+  // 確認ダイアログ
+  if(!confirm('本当にパスワードをリセットしますか？\nパスワードは初期値（1234）に戻ります。')){
+    return;
+  }
+  
+  try {
+    // localStorageのパスワードハッシュを削除
+    localStorage.removeItem(PW_KEY);
+    
+    // 1234をハッシュ化して再度保存
+    const defaultHash = await hashPassword('1234');
+    localStorage.setItem(PW_KEY, defaultHash);
+    
+    resetRes.style.color='var(--green)';
+    resetRes.textContent='✅ パスワードを初期値（1234）にリセットしました！';
+    
+    // フォームをクリア
+    document.getElementById('s-cur').value='';
+    document.getElementById('s-new').value='';
+    document.getElementById('s-confirm').value='';
+    
+    setTimeout(()=>{resetRes.textContent='';},3000);
+  } catch (e) {
+    resetRes.style.color='var(--red)';
+    resetRes.textContent='❌ リセットに失敗しました';
+    console.error(e);
+  }
 }
 
 // ═══════════════════════════════════════════
