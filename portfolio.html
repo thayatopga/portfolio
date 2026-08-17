@@ -10,7 +10,6 @@
 <link rel="manifest" href="manifest.json">
 <title>マイポートフォリオ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#fff;--bg2:#f5f5f5;--bg3:#e8e8e8;--text:#111;--text2:#555;--text3:#999;--border:rgba(0,0,0,0.1);--blue:#185FA5;--green:#1D9E75;--red:#E24B4A;--amber:#BA7517;}
@@ -129,10 +128,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .calendar-event{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;background:var(--bg);border:1px solid var(--border);font-size:12px;}
 .ratio-pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(24,95,165,0.12);color:var(--blue);}
 .small-btn{border:none;background:var(--bg3);color:var(--text);padding:7px 10px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;}
+#lock-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;}
+.lock-icon{font-size:56px;margin-bottom:16px;}
+.lock-title{font-size:22px;font-weight:700;margin-bottom:6px;}
+.lock-sub{font-size:14px;color:var(--text3);margin-bottom:32px;text-align:center;}
+.lock-input{width:100%;max-width:320px;padding:15px 18px;border-radius:14px;border:2px solid var(--border);background:var(--bg2);font-size:20px;color:var(--text);text-align:center;letter-spacing:4px;outline:none;font-family:inherit;margin-bottom:12px;}
+.lock-input:focus{border-color:var(--blue);}
+.lock-btn{width:100%;max-width:320px;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;}
+.lock-error{font-size:13px;color:var(--red);min-height:20px;text-align:center;}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="lock-screen" style="display:flex;">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-title">マイポートフォリオ</div>
+  <div class="lock-sub">パスワードを入力してください</div>
+  <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32" autocomplete="current-password" onkeydown="if(event.key==='Enter')checkPassword()">
+  <button class="lock-btn" onclick="checkPassword()">ロック解除</button>
+  <div class="lock-error" id="lock-error"></div>
+</div>
+
+<div class="app" id="app" style="display:none;">
   <!-- ホーム -->
   <div class="screen active" id="screen-home">
     <div class="topbar">
@@ -243,7 +259,17 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="screen" id="screen-settings">
     <div class="topbar"><h1>設定</h1></div>
     <div class="form-section">
-      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:8px;">株価・基準価額を更新</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;">パスワード変更</div>
+      <div class="settings-group">
+        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+          <div class="field" style="width:100%;margin-bottom:0;"><label>現在のパスワード</label><input type="password" id="s-cur" placeholder="現在のパスワード"></div>
+          <div class="field" style="width:100%;margin-bottom:0;"><label>新しいパスワード</label><input type="password" id="s-new" placeholder="新しいパスワード"></div>
+          <button class="btn-primary" onclick="changePassword()">パスワードを変更</button>
+          <div id="pw-msg" style="font-size:13px;min-height:20px;text-align:center;margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">株価・基準価額を更新</div>
       <div class="info-box">「更新」ボタンを押すと Claude AI が最新の株価・基準価額・為替レートを取得して評価額を再計算します。</div>
       <button class="btn-primary" id="refresh-all-btn" onclick="refreshAll()">📈 全銘柄を一括更新</button>
       <div id="refresh-status" style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center;"></div>
@@ -401,10 +427,10 @@ const INITIAL_DATA = {
 };
 
 // ═══════════════════════════════════════════
-// ストレージ・暗号化
+// ストレージキー
 // ═══════════════════════════════════════════
 const SK = 'portfolio_v4';
-const ENCRYPTION_KEY = 'portfolio_secret_key_2026';
+const PW_KEY = 'portfolio_password';
 let DATA = null;
 let fxRate = 159.23;
 let pieChart = null, barChart = null;
@@ -412,36 +438,67 @@ let currentHomeTab = 'all';
 let currentTrendPeriod = 'month';
 let editingAsset = null;
 
-// 暗号化・復号化ユーティリティ
-function encryptData(data) {
-  const json = JSON.stringify(data);
-  return CryptoJS.AES.encrypt(json, ENCRYPTION_KEY).toString();
+// ═══════════════════════════════════════════
+// パスワード管理（シンプル版）
+// ═══════════════════════════════════════════
+function getPassword() {
+  const stored = localStorage.getItem(PW_KEY);
+  return stored || '1234';
 }
 
-function decryptData(encrypted) {
-  try {
-    const bytes = CryptoJS.AES.decrypt(encrypted, ENCRYPTION_KEY);
-    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-    return JSON.parse(decrypted);
-  } catch (e) {
-    return null;
+function setPassword(newPassword) {
+  localStorage.setItem(PW_KEY, newPassword);
+}
+
+function checkPassword() {
+  const input = document.getElementById('lock-input').value;
+  const correct = getPassword();
+  const err = document.getElementById('lock-error');
+  
+  if(input === correct) {
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('lock-input').value = '';
+  } else {
+    err.textContent = 'パスワードが違います';
+    document.getElementById('lock-input').value = '';
+    setTimeout(() => { err.textContent = ''; }, 2000);
   }
 }
 
+function changePassword() {
+  const current = document.getElementById('s-cur').value;
+  const newPw = document.getElementById('s-new').value;
+  const msg = document.getElementById('pw-msg');
+  
+  if(current !== getPassword()) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '現在のパスワードが違います';
+    return;
+  }
+  
+  if(!newPw || newPw.length < 1) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '新しいパスワードを入力してください';
+    return;
+  }
+  
+  setPassword(newPw);
+  msg.style.color = 'var(--green)';
+  msg.textContent = '✅ パスワードを変更しました！';
+  document.getElementById('s-cur').value = '';
+  document.getElementById('s-new').value = '';
+  setTimeout(() => { msg.textContent = ''; }, 3000);
+}
+
 // ═══════════════════════════════════════════
-// データ管理（暗号化対応）
+// データ管理
 // ═══════════════════════════════════════════
 function loadData(){
   try{
-    const encrypted = localStorage.getItem(SK);
-    if (encrypted) {
-      DATA = decryptData(encrypted);
-      if (!DATA) throw new Error('Decryption failed');
-    } else {
-      DATA = JSON.parse(JSON.stringify(INITIAL_DATA));
-    }
+    const stored = localStorage.getItem(SK);
+    DATA = stored ? JSON.parse(stored) : JSON.parse(JSON.stringify(INITIAL_DATA));
   }catch(e){ 
-    console.log('データ復号化エラー、初期データを使用:', e);
     DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); 
   }
   if(!Array.isArray(DATA.monthlyHistory)) DATA.monthlyHistory = [];
@@ -456,10 +513,9 @@ function loadData(){
 
 function saveData(){
   try{ 
-    const encrypted = encryptData(DATA);
-    localStorage.setItem(SK, encrypted);
+    localStorage.setItem(SK, JSON.stringify(DATA));
   }catch(e){ 
-    console.error('データ暗号化エラー:', e);
+    console.error('データ保存エラー:', e);
   }
 }
 
@@ -1265,6 +1321,9 @@ renderHistoryList();
 renderDividendScreen();
 renderTrendScreen();
 fetchFX().then(()=>render());
+setTimeout(() => {
+  document.getElementById('lock-input').focus();
+}, 100);
 </script>
 </body>
 </html>
