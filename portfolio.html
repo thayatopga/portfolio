@@ -1404,14 +1404,48 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
+// ═══════════════════════════════════════════
+// URLパラメータによるリセット機能
+// ═══════════════════════════════════════════
+async function checkResetParam(){
+  const params = new URLSearchParams(window.location.search);
+  const resetParam = params.get('reset');
+  
+  if(resetParam === 'true'){
+    const err = document.getElementById('lock-error');
+    
+    try {
+      // localStorageを完全にクリア
+      localStorage.removeItem(PW_KEY);
+      localStorage.removeItem(SK);
+      
+      err.style.color = 'var(--green)';
+      err.textContent = '✅ リセット完了。ページをリロードしています...';
+      
+      // URLパラメータを削除してリロード
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        location.reload();
+      }, 2000);
+    } catch (e) {
+      err.style.color = 'var(--red)';
+      err.textContent = '❌ リセット失敗。もう一度お試しください。';
+      console.error(e);
+      setTimeout(()=>{ err.textContent=''; }, 3000);
+    }
+  }
+}
+
 // 起動時
 document.getElementById('lock-screen').style.display='flex';
 setTimeout(()=>document.getElementById('lock-input').focus(),100);
-loadData();
-renderHistoryList();
-renderDividendScreen();
-renderTrendScreen();
-fetchFX().then(()=>render());
+checkResetParam().then(() => {
+  loadData();
+  renderHistoryList();
+  renderDividendScreen();
+  renderTrendScreen();
+  fetchFX().then(()=>render());
+});
 </script>
 </body>
 </html>
