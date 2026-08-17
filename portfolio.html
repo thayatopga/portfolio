@@ -26,6 +26,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .lock-input{width:100%;max-width:320px;padding:15px 18px;border-radius:14px;border:2px solid var(--border);background:var(--bg2);font-size:20px;color:var(--text);text-align:center;letter-spacing:4px;outline:none;font-family:inherit;margin-bottom:12px;}
 .lock-input:focus{border-color:var(--blue);}
 .lock-btn{width:100%;max-width:320px;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;}
+.lock-reset-btn{width:100%;max-width:320px;background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:14px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;text-decoration:underline;}
+.lock-reset-btn:hover{color:var(--text2);border-color:var(--text2);}
 .lock-error{font-size:13px;color:var(--red);min-height:20px;text-align:center;}
 .topbar{padding:52px 16px 12px;background:var(--bg);position:sticky;top:0;z-index:10;border-bottom:0.5px solid var(--border);}
 .topbar h1{font-size:20px;font-weight:700;}
@@ -137,6 +139,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="lock-sub">パスワードを入力してください</div>
   <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUnlock()">
   <button class="lock-btn" onclick="doUnlock()">ロック解除</button>
+  <button class="lock-reset-btn" onclick="resetPasswordFromLockScreen()">🔄 パスワードをリセット</button>
   <div class="lock-error" id="lock-error"></div>
 </div>
 
@@ -495,6 +498,34 @@ async function doUnlock(){
   }
 }
 
+async function resetPasswordFromLockScreen(){
+  const err = document.getElementById('lock-error');
+  
+  // 確認ダイアログ
+  if(!confirm('パスワードをリセットしますか？\nパスワードは初期値（1234）に戻ります。')){
+    return;
+  }
+  
+  try {
+    // localStorageを完全にクリア
+    localStorage.removeItem(PW_KEY);
+    localStorage.removeItem(SK);
+    
+    err.style.color = 'var(--green)';
+    err.textContent = '✅ リセット完了。ページをリロードしてください。';
+    
+    // 2秒後にページをリロード
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+  } catch (e) {
+    err.style.color = 'var(--red)';
+    err.textContent = '❌ リセット失敗。もう一度お試しください。';
+    console.error(e);
+    setTimeout(()=>{ err.textContent=''; }, 3000);
+  }
+}
+
 async function savePw(){
   const cur=document.getElementById('s-cur').value;
   const nw=document.getElementById('s-new').value;
@@ -523,26 +554,22 @@ async function resetPassword(){
   }
   
   try {
-    // localStorageのパスワードハッシュを削除
+    // localStorageを完全にクリア
     localStorage.removeItem(PW_KEY);
-    
-    // 1234をハッシュ化して再度保存
-    const defaultHash = await hashPassword('1234');
-    localStorage.setItem(PW_KEY, defaultHash);
+    localStorage.removeItem(SK);
     
     resetRes.style.color='var(--green)';
-    resetRes.textContent='✅ パスワードを初期値（1234）にリセットしました！';
+    resetRes.textContent='✅ リセット完了。ページをリロードしています...';
     
-    // フォームをクリア
-    document.getElementById('s-cur').value='';
-    document.getElementById('s-new').value='';
-    document.getElementById('s-confirm').value='';
-    
-    setTimeout(()=>{resetRes.textContent='';},3000);
+    // 2秒後にページをリロード
+    setTimeout(()=>{
+      location.reload();
+    }, 2000);
   } catch (e) {
     resetRes.style.color='var(--red)';
     resetRes.textContent='❌ リセットに失敗しました';
     console.error(e);
+    setTimeout(()=>{resetRes.textContent='';},3000);
   }
 }
 
