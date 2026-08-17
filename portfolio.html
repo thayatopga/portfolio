@@ -11,7 +11,6 @@
 <title>マイポートフォリオ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#fff;--bg2:#f5f5f5;--bg3:#e8e8e8;--text:#111;--text2:#555;--text3:#999;--border:rgba(0,0,0,0.1);--blue:#185FA5;--green:#1D9E75;--red:#E24B4A;--amber:#BA7517;}
@@ -133,16 +132,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </style>
 </head>
 <body>
-<div id="lock-screen">
-  <div class="lock-icon">🔒</div>
-  <div class="lock-title">マイポートフォリオ</div>
-  <div class="lock-sub">パスワードを入力してください</div>
-  <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUnlock()">
-  <button class="lock-btn" onclick="doUnlock()">ロック解除</button>
-  <button class="lock-reset-btn" onclick="resetPasswordFromLockScreen()">🔄 パスワードをリセット</button>
-  <div class="lock-error" id="lock-error"></div>
-</div>
-
 <div class="app">
   <!-- ホーム -->
   <div class="screen active" id="screen-home">
@@ -254,24 +243,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="screen" id="screen-settings">
     <div class="topbar"><h1>設定</h1></div>
     <div class="form-section">
-      <div style="font-size:15px;font-weight:700;margin-bottom:14px;">パスワード変更</div>
-      <div class="settings-group">
-        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
-          <div class="field" style="width:100%;margin-bottom:0;"><label>現在のパスワード</label><input type="password" id="s-cur" autocomplete="current-password"></div>
-          <div class="field" style="width:100%;margin-bottom:0;"><label>新しいパスワード（4文字以上）</label><input type="password" id="s-new" autocomplete="new-password"></div>
-          <div class="field" style="width:100%;margin-bottom:0;"><label>新しいパスワード（確認）</label><input type="password" id="s-confirm" autocomplete="new-password"></div>
-          <button class="btn-primary" onclick="savePw()">変更する</button>
-          <div class="pw-result" id="pw-result"></div>
-        </div>
-      </div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:20px;">パスワードリセット</div>
-      <div class="settings-group">
-        <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
-          <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">⚠️ このボタンをクリックするとパスワードが初期値（1234）にリセットされます。</div>
-          <button class="btn-secondary" onclick="resetPassword()" style="background:var(--red)20;color:var(--red);border-color:var(--red);">🔄 パスワードをリセット</button>
-          <div class="pw-result" id="reset-result"></div>
-        </div>
-      </div>
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;margin-top:8px;">株価・基準価額を更新</div>
       <div class="info-box">「更新」ボタンを押すと Claude AI が最新の株価・基準価額・為替レートを取得して評価額を再計算します。</div>
       <button class="btn-primary" id="refresh-all-btn" onclick="refreshAll()">📈 全銘柄を一括更新</button>
@@ -430,10 +401,9 @@ const INITIAL_DATA = {
 };
 
 // ═══════════════════════════════════════════
-// ストレージ・パスワード・暗号化
+// ストレージ・暗号化
 // ═══════════════════════════════════════════
 const SK = 'portfolio_v4';
-const PW_KEY = 'portfolio_pw_hash';
 const ENCRYPTION_KEY = 'portfolio_secret_key_2026';
 let DATA = null;
 let fxRate = 159.23;
@@ -455,121 +425,6 @@ function decryptData(encrypted) {
     return JSON.parse(decrypted);
   } catch (e) {
     return null;
-  }
-}
-
-// パスワード検証（bcryptjs使用）
-async function hashPassword(password) {
-  return await bcrypt.hash(password, 10);
-}
-
-async function verifyPassword(password, hash) {
-  try {
-    return await bcrypt.compare(password, hash);
-  } catch (e) {
-    return false;
-  }
-}
-
-async function getPwHash() {
-  const stored = localStorage.getItem(PW_KEY);
-  if (!stored) {
-    // 初回：デフォルトパスワード「1234」をハッシュ化して保存
-    const hash = await hashPassword('1234');
-    localStorage.setItem(PW_KEY, hash);
-    return hash;
-  }
-  return stored;
-}
-
-async function doUnlock(){
-  const val = document.getElementById('lock-input').value;
-  const err = document.getElementById('lock-error');
-  const hash = await getPwHash();
-  const isValid = await verifyPassword(val, hash);
-  
-  if(isValid){
-    document.getElementById('lock-screen').style.display = 'none';
-    document.getElementById('lock-input').value = '';
-  } else {
-    err.textContent = 'パスワードが違います';
-    document.getElementById('lock-input').value = '';
-    setTimeout(()=>{ err.textContent=''; }, 2000);
-  }
-}
-
-async function resetPasswordFromLockScreen(){
-  const err = document.getElementById('lock-error');
-  
-  // 確認ダイアログ
-  if(!confirm('パスワードをリセットしますか？\nパスワードは初期値（1234）に戻ります。')){
-    return;
-  }
-  
-  try {
-    // localStorageを完全にクリア
-    localStorage.removeItem(PW_KEY);
-    localStorage.removeItem(SK);
-    
-    err.style.color = 'var(--green)';
-    err.textContent = '✅ リセット完了。ページをリロードしてください。';
-    
-    // 2秒後にページをリロード
-    setTimeout(() => {
-      location.reload();
-    }, 2000);
-  } catch (e) {
-    err.style.color = 'var(--red)';
-    err.textContent = '❌ リセット失敗。もう一度お試しください。';
-    console.error(e);
-    setTimeout(()=>{ err.textContent=''; }, 3000);
-  }
-}
-
-async function savePw(){
-  const cur=document.getElementById('s-cur').value;
-  const nw=document.getElementById('s-new').value;
-  const conf=document.getElementById('s-confirm').value;
-  const res=document.getElementById('pw-result');
-  
-  const hash = await getPwHash();
-  const isCurrentValid = await verifyPassword(cur, hash);
-  
-  if(!isCurrentValid){res.style.color='var(--red)';res.textContent='現在のパスワードが違います';return;}
-  if(nw.length<4){res.style.color='var(--red)';res.textContent='4文字以上で入力してください';return;}
-  if(nw!==conf){res.style.color='var(--red)';res.textContent='パスワードが一致しません';return;}
-  
-  const newHash = await hashPassword(nw);
-  localStorage.setItem(PW_KEY, newHash);
-  res.style.color='var(--green)';res.textContent='パスワードを変更しました！';
-  document.getElementById('s-cur').value='';document.getElementById('s-new').value='';document.getElementById('s-confirm').value='';
-  setTimeout(()=>{res.textContent='';},3000);
-}
-
-async function resetPassword(){
-  const resetRes=document.getElementById('reset-result');
-  // 確認ダイアログ
-  if(!confirm('本当にパスワードをリセットしますか？\nパスワードは初期値（1234）に戻ります。')){
-    return;
-  }
-  
-  try {
-    // localStorageを完全にクリア
-    localStorage.removeItem(PW_KEY);
-    localStorage.removeItem(SK);
-    
-    resetRes.style.color='var(--green)';
-    resetRes.textContent='✅ リセット完了。ページをリロードしています...';
-    
-    // 2秒後にページをリロード
-    setTimeout(()=>{
-      location.reload();
-    }, 2000);
-  } catch (e) {
-    resetRes.style.color='var(--red)';
-    resetRes.textContent='❌ リセットに失敗しました';
-    console.error(e);
-    setTimeout(()=>{resetRes.textContent='';},3000);
   }
 }
 
@@ -1404,48 +1259,12 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-// ═══════════════════════════════════════════
-// URLパラメータによるリセット機能
-// ═══════════════════════════════════════════
-async function checkResetParam(){
-  const params = new URLSearchParams(window.location.search);
-  const resetParam = params.get('reset');
-  
-  if(resetParam === 'true'){
-    const err = document.getElementById('lock-error');
-    
-    try {
-      // localStorageを完全にクリア
-      localStorage.removeItem(PW_KEY);
-      localStorage.removeItem(SK);
-      
-      err.style.color = 'var(--green)';
-      err.textContent = '✅ リセット完了。ページをリロードしています...';
-      
-      // URLパラメータを削除してリロード
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-        location.reload();
-      }, 2000);
-    } catch (e) {
-      err.style.color = 'var(--red)';
-      err.textContent = '❌ リセット失敗。もう一度お試しください。';
-      console.error(e);
-      setTimeout(()=>{ err.textContent=''; }, 3000);
-    }
-  }
-}
-
 // 起動時
-document.getElementById('lock-screen').style.display='flex';
-setTimeout(()=>document.getElementById('lock-input').focus(),100);
-checkResetParam().then(() => {
-  loadData();
-  renderHistoryList();
-  renderDividendScreen();
-  renderTrendScreen();
-  fetchFX().then(()=>render());
-});
+loadData();
+renderHistoryList();
+renderDividendScreen();
+renderTrendScreen();
+fetchFX().then(()=>render());
 </script>
 </body>
 </html>
