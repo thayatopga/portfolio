@@ -10,6 +10,8 @@
 <link rel="manifest" href="manifest.json">
 <title>マイポートフォリオ</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#fff;--bg2:#f5f5f5;--bg3:#e8e8e8;--text:#111;--text2:#555;--text3:#999;--border:rgba(0,0,0,0.1);--blue:#185FA5;--green:#1D9E75;--red:#E24B4A;--amber:#BA7517;}
@@ -136,7 +138,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <input class="lock-input" type="password" id="lock-input" placeholder="••••••••" maxlength="32" autocomplete="current-password" onkeydown="if(event.key==='Enter')doUnlock()">
   <button class="lock-btn" onclick="doUnlock()">ロック解除</button>
   <div class="lock-error" id="lock-error"></div>
-  <div style="font-size:12px;color:var(--text3);margin-top:24px;text-align:center;">初回パスワード: <strong>1234</strong></div>
 </div>
 
 <div class="app">
@@ -418,10 +419,11 @@ const INITIAL_DATA = {
 };
 
 // ═══════════════════════════════════════════
-// ストレージ・パスワード
+// ストレージ・パスワード・暗号化
 // ═══════════════════════════════════════════
 const SK = 'portfolio_v4';
-const PW_KEY = 'portfolio_pw';
+const PW_KEY = 'portfolio_pw_hash';
+const ENCRYPTION_KEY = 'portfolio_secret_key_2026';
 let DATA = null;
 let fxRate = 159.23;
 let pieChart = null, barChart = null;
@@ -429,11 +431,53 @@ let currentHomeTab = 'all';
 let currentTrendPeriod = 'month';
 let editingAsset = null;
 
-function getPw(){ return localStorage.getItem(PW_KEY) || '1234'; }
-function doUnlock(){
+// 暗号化・復号化ユーティリティ
+function encryptData(data) {
+  const json = JSON.stringify(data);
+  return CryptoJS.AES.encrypt(json, ENCRYPTION_KEY).toString();
+}
+
+function decryptData(encrypted) {
+  try {
+    const bytes = CryptoJS.AES.decrypt(encrypted, ENCRYPTION_KEY);
+    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    return JSON.parse(decrypted);
+  } catch (e) {
+    return null;
+  }
+}
+
+// パスワード検証（bcryptjs使用）
+async function hashPassword(password) {
+  return await bcrypt.hash(password, 10);
+}
+
+async function verifyPassword(password, hash) {
+  try {
+    return await bcrypt.compare(password, hash);
+  } catch (e) {
+    return false;
+  }
+}
+
+async function getPwHash() {
+  const stored = localStorage.getItem(PW_KEY);
+  if (!stored) {
+    // 初回：デフォルトパスワード「1234」をハッシュ化して保存
+    const hash = await hashPassword('1234');
+    localStorage.setItem(PW_KEY, hash);
+    return hash;
+  }
+  return stored;
+}
+
+async function doUnlock(){
   const val = document.getElementById('lock-input').value;
   const err = document.getElementById('lock-error');
-  if(val === getPw()){
+  const hash = await getPwHash();
+  const isValid = await verifyPassword(val, hash);
+  
+  if(isValid){
     document.getElementById('lock-screen').style.display = 'none';
     document.getElementById('lock-input').value = '';
   } else {
@@ -442,28 +486,43 @@ function doUnlock(){
     setTimeout(()=>{ err.textContent=''; }, 2000);
   }
 }
-function savePw(){
+
+async function savePw(){
   const cur=document.getElementById('s-cur').value;
   const nw=document.getElementById('s-new').value;
   const conf=document.getElementById('s-confirm').value;
   const res=document.getElementById('pw-result');
-  if(cur!==getPw()){res.style.color='var(--red)';res.textContent='現在のパスワードが違います';return;}
+  
+  const hash = await getPwHash();
+  const isCurrentValid = await verifyPassword(cur, hash);
+  
+  if(!isCurrentValid){res.style.color='var(--red)';res.textContent='現在のパスワードが違います';return;}
   if(nw.length<4){res.style.color='var(--red)';res.textContent='4文字以上で入力してください';return;}
   if(nw!==conf){res.style.color='var(--red)';res.textContent='パスワードが一致しません';return;}
-  localStorage.setItem(PW_KEY,nw);
+  
+  const newHash = await hashPassword(nw);
+  localStorage.setItem(PW_KEY, newHash);
   res.style.color='var(--green)';res.textContent='パスワードを変更しました！';
   document.getElementById('s-cur').value='';document.getElementById('s-new').value='';document.getElementById('s-confirm').value='';
   setTimeout(()=>{res.textContent='';},3000);
 }
 
 // ═══════════════════════════════════════════
-// データ管理
+// データ管理（暗号化対応）
 // ═══════════════════════════════════════════
 function loadData(){
   try{
-    const r=localStorage.getItem(SK);
-    DATA = r ? JSON.parse(r) : JSON.parse(JSON.stringify(INITIAL_DATA));
-  }catch(e){ DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); }
+    const encrypted = localStorage.getItem(SK);
+    if (encrypted) {
+      DATA = decryptData(encrypted);
+      if (!DATA) throw new Error('Decryption failed');
+    } else {
+      DATA = JSON.parse(JSON.stringify(INITIAL_DATA));
+    }
+  }catch(e){ 
+    console.log('データ復号化エラー、初期データを使用:', e);
+    DATA = JSON.parse(JSON.stringify(INITIAL_DATA)); 
+  }
   if(!Array.isArray(DATA.monthlyHistory)) DATA.monthlyHistory = [];
   if(!Array.isArray(DATA.assetSnapshots)) DATA.assetSnapshots = [];
   if(!Array.isArray(DATA.dividendRecords)) DATA.dividendRecords = [];
@@ -473,8 +532,14 @@ function loadData(){
   if(DATA.updatedAt) document.getElementById('last-updated').textContent = DATA.updatedAt + ' 時点';
   renderHistoryList();
 }
+
 function saveData(){
-  try{ localStorage.setItem(SK, JSON.stringify(DATA)); }catch(e){}
+  try{ 
+    const encrypted = encryptData(DATA);
+    localStorage.setItem(SK, encrypted);
+  }catch(e){ 
+    console.error('データ暗号化エラー:', e);
+  }
 }
 
 function ensureDividendData(){
